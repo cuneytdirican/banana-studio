@@ -81,7 +81,12 @@ export const findVisualDuplicateGroups = async (
   limit = 120,
   fetchImpl: typeof fetch = fetch,
 ): Promise<GeneratedMedia[][]> => {
-  const candidateImages = images.filter(item => !item.isLoading && item.status !== 'failed' && item.url);
+  if (!globalThis.crypto?.subtle) {
+    throw new Error('Pixel scanning requires a secure context (HTTPS or localhost).');
+  }
+  const candidateImages = images.filter(item =>
+    item.mediaType === 'image' && !item.isLoading && item.status !== 'failed' && item.url,
+  );
   const groups = new Map<string, GeneratedMedia[]>();
   for (const media of candidateImages.slice(0, limit)) {
     try {

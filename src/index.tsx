@@ -3,13 +3,8 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { validateWorkspaceConfig } from './lib/config/runtimeConfig';
 
-window.addEventListener('vite:preloadError', event => {
-  event.preventDefault();
-  const key = 'banana:preload-reload';
-  if (sessionStorage.getItem(key)) return;
-  sessionStorage.setItem(key, '1');
-  window.location.reload();
-});
+// Lazy chunk failures are handled by LazyBoundary. Do not reload automatically:
+// an in-flight generation lives only in memory and a reload would lose it.
 
 const rootElement = document.getElementById('root');
 if (!rootElement) {

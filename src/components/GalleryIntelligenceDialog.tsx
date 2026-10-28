@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Download, Images, Loader2, ScanSearch, ShieldCheck, X } from 'lucide-react';
 import {
   buildContactSheetHtml,
@@ -33,6 +33,22 @@ export const GalleryIntelligenceDialog = ({
   const recipeGroups = useMemo(() => findRecipeDuplicateGroups(images), [images]);
   const issues = useMemo(() => runGalleryQa(images), [images]);
   const available = images.filter(media => !media.isLoading && media.url);
+  const dialogRef = useRef<HTMLDialogElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const dialog = dialogRef.current;
+    if (dialog && !dialog.open) {
+      if (typeof dialog.showModal === 'function') dialog.showModal();
+      else dialog.setAttribute('open', '');
+    }
+    return () => {
+      if (dialog?.open) {
+        if (typeof dialog.close === 'function') dialog.close();
+        else dialog.removeAttribute('open');
+      }
+    };
+  }, [open]);
 
   if (!open) return null;
 
@@ -49,11 +65,12 @@ export const GalleryIntelligenceDialog = ({
   };
 
   const printContactSheet = () => {
-    const sheet = window.open('', '_blank', 'noopener,noreferrer');
+    const sheet = window.open('', '_blank');
     if (!sheet) {
       setScanError('Allow pop-ups to open the contact sheet.');
       return;
     }
+    sheet.opener = null;
     sheet.document.write(buildContactSheetHtml(images));
     sheet.document.close();
     sheet.focus();
@@ -61,7 +78,12 @@ export const GalleryIntelligenceDialog = ({
   };
 
   return (
-    <div className="fixed inset-0 z-[85] flex items-center justify-center bg-black/75 p-4" role="dialog" aria-modal="true" aria-labelledby="gallery-intelligence-title">
+    <dialog
+      ref={dialogRef}
+      onCancel={event => { event.preventDefault(); onClose(); }}
+      aria-labelledby="gallery-intelligence-title"
+      className="fixed inset-0 z-[85] m-0 flex h-full max-h-none w-full max-w-none items-center justify-center border-0 bg-black/75 p-4 backdrop:bg-black/75"
+    >
       <div className="flex max-h-[88vh] w-full max-w-3xl flex-col overflow-hidden rounded-2xl border border-gray-700 bg-[#161b22] text-white shadow-2xl">
         <div className="flex items-start justify-between gap-4 border-b border-gray-800 p-5">
           <div>
@@ -179,6 +201,7 @@ export const GalleryIntelligenceDialog = ({
               <p className="mt-1 max-w-lg text-xs leading-5 text-gray-500">
                 Opens a print-ready A4 sheet with thumbnails, model names, prompts and tags. Choose “Save as PDF” in the print dialog.
               </p>
+              {scanError && <p role="alert" className="mt-3 text-xs text-red-300">{scanError}</p>}
               <button
                 type="button"
                 onClick={printContactSheet}
@@ -192,6 +215,6 @@ export const GalleryIntelligenceDialog = ({
           )}
         </div>
       </div>
-    </div>
+    </dialog>
   );
 };

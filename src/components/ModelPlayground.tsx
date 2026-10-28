@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { FlaskConical, X } from 'lucide-react';
 import { buildModelComparison } from '../lib/images/modelComparison';
 import {
@@ -12,6 +12,9 @@ import {
 
 const ASPECT_RATIOS: AspectRatio[] = ['1:1', '4:3', '3:4', '16:9', '9:16'];
 const RESOLUTIONS: Resolution[] = ['1K', '2K', '4K'];
+
+const getAlternateModel = (model: ImageModelId): ImageModelId =>
+  IMAGE_MODEL_OPTIONS.find(option => option.value !== model)?.value || model;
 
 export const ModelPlayground = ({
   open,
@@ -28,19 +31,34 @@ export const ModelPlayground = ({
 }) => {
   const [prompt, setPrompt] = useState(config.prompt);
   const [modelA, setModelA] = useState<ImageModelId>(config.imageModel);
-  const [modelB, setModelB] = useState<ImageModelId>(
-    config.imageModel === 'gemini-3-pro-image-preview' ? 'gemini-nano-banana-2.1' : 'gemini-3-pro-image-preview',
-  );
+  const [modelB, setModelB] = useState<ImageModelId>(() => getAlternateModel(config.imageModel));
   const [aspectRatio, setAspectRatio] = useState<AspectRatio>(config.aspectRatio);
   const [resolution, setResolution] = useState<Resolution>(config.resolution);
+  const dialogRef = useRef<HTMLDialogElement>(null);
 
   useEffect(() => {
     if (!open) return;
     setPrompt(config.prompt);
     setModelA(config.imageModel);
+    setModelB(getAlternateModel(config.imageModel));
     setAspectRatio(config.aspectRatio);
     setResolution(config.resolution);
   }, [open, config.imageModel, config.prompt, config.aspectRatio, config.resolution]);
+
+  useEffect(() => {
+    if (!open) return;
+    const dialog = dialogRef.current;
+    if (dialog && !dialog.open) {
+      if (typeof dialog.showModal === 'function') dialog.showModal();
+      else dialog.setAttribute('open', '');
+    }
+    return () => {
+      if (dialog?.open) {
+        if (typeof dialog.close === 'function') dialog.close();
+        else dialog.removeAttribute('open');
+      }
+    };
+  }, [open]);
 
   if (!open) return null;
 
@@ -50,7 +68,12 @@ export const ModelPlayground = ({
   const canApply = prompt.trim().length > 0;
 
   return (
-    <div className="fixed inset-0 z-[90] flex items-center justify-center bg-black/75 p-4" role="dialog" aria-modal="true" aria-labelledby="model-playground-title">
+    <dialog
+      ref={dialogRef}
+      onCancel={event => { event.preventDefault(); onClose(); }}
+      aria-labelledby="model-playground-title"
+      className="fixed inset-0 z-[90] m-0 flex h-full max-h-none w-full max-w-none items-center justify-center border-0 bg-black/75 p-4 backdrop:bg-black/75"
+    >
       <div className="max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-2xl border border-gray-700 bg-[#161b22] p-6 text-white shadow-2xl">
         <div className="mb-5 flex items-start justify-between gap-4">
           <div>
@@ -93,12 +116,21 @@ export const ModelPlayground = ({
 
         <div className="grid gap-3 md:grid-cols-2">
           {comparisons.map((comparison, index) => (
-            <section key={comparison.model} className="rounded-xl border border-gray-700/70 bg-gray-900/40 p-4">
+            <section key={index} className="rounded-xl border border-gray-700/70 bg-gray-900/40 p-4">
               <label className="block">
                 <span className="mb-1 block text-[10px] font-semibold uppercase tracking-wide text-gray-500">Model {index === 0 ? 'A' : 'B'}</span>
                 <select
                   value={comparison.model}
-                  onChange={event => (index === 0 ? setModelA : setModelB)(event.target.value as ImageModelId)}
+                  onChange={event => {
+                    const nextModel = event.target.value as ImageModelId;
+                    if (index === 0) {
+                      setModelA(nextModel);
+                      if (nextModel === modelB) setModelB(getAlternateModel(nextModel));
+                    } else {
+                      setModelB(nextModel);
+                      if (nextModel === modelA) setModelA(getAlternateModel(nextModel));
+                    }
+                  }}
                   className="w-full rounded-lg border border-gray-700 bg-gray-900 px-2 py-2 text-sm text-gray-100"
                 >
                   {IMAGE_MODEL_OPTIONS.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}
@@ -142,6 +174,6 @@ export const ModelPlayground = ({
           Costs are estimates based on the selected ratio and resolution. Nano Banana and GPT Image with references can bill additional input tokens. Latency comes from your own completed generations.
         </p>
       </div>
-    </div>
+    </dialog>
   );
 };
