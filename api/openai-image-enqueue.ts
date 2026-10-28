@@ -11,7 +11,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method==='OPTIONS') return res.status(200).end();
   if (req.method!=='POST') return res.status(405).json({ error:'Method not allowed' });
   const user = await requireUser(req,res); if (!user) return;
-  if (!await enforceDailyGenerationQuota(createUserScopedClient(req), user.id, res)) return;
   if ((process.env.VERCEL_ENV && process.env.VERCEL_ENV!=='production')) return res.status(503).json({ error:'Image generation is temporarily disabled.' });
   const sessionId = getOpenAISessionId(req), db = createServiceRoleClient();
   if (!sessionId) return res.status(401).json({ error:'Refresh your session before generating.' });
@@ -21,6 +20,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   catch { return res.status(400).json({ error:'Invalid image job.' }); }
   try {
     const { payload, metadata } = await prepareImageJobPayload(body,createUserScopedClient(req));
+    if (!await enforceDailyGenerationQuota(createUserScopedClient(req), user.id, res)) return;
     const { data, error } = await db.rpc('enqueue_image_job', { p_user_id:user.id, p_session_id:sessionId, p_id:payload.id, p_payload:payload, p_metadata:metadata });
     if (error || !data) return res.status(503).json({ code:'QUEUE_STATE_UNKNOWN', error:'The queue could not confirm this image. Check the gallery before submitting again.' });
     if (data.error) return res.status(data.error==='session'?403:data.error==='full'?429:409).json({ error:data.error==='full'?'The saved image queue is full. Wait for existing jobs to finish.':'This generation could not be queued.', ...(data.error==='exists'?{code:'GENERATION_EXISTS'}:{}) });

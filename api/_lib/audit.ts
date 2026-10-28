@@ -1,6 +1,11 @@
-export const AUDIT_ACTIONS = new Set([
+/** Events that only server code may write. */
+export const SERVER_AUDIT_ACTIONS = new Set([
   'generation.accepted',
   'generation.rejected_quota',
+]);
+
+/** Events that an authenticated browser session may submit. */
+export const CLIENT_AUDIT_ACTIONS = new Set([
   'share.created',
   'share.revoked',
   'media.deleted',
@@ -24,13 +29,13 @@ export const normalizeAuditEvent = (input: unknown): AuditEventInput | null => {
   if (!input || typeof input !== 'object') return null;
   const source = input as Record<string, unknown>;
   if (typeof source.userId !== 'string' || !source.userId) return null;
-  if (typeof source.action !== 'string' || !AUDIT_ACTIONS.has(source.action)) return null;
+  if (typeof source.action !== 'string' || !CLIENT_AUDIT_ACTIONS.has(source.action)) return null;
   const targetType = typeof source.targetType === 'string' ? source.targetType.trim().slice(0, 40) || null : null;
   const targetId = typeof source.targetId === 'string' ? source.targetId.trim().slice(0, 200) || null : null;
   const metadata = source.metadata && typeof source.metadata === 'object' && !Array.isArray(source.metadata)
     ? source.metadata as Record<string, unknown>
     : {};
-  if (JSON.stringify(metadata).length > MAX_METADATA_BYTES) return null;
+  if (Buffer.byteLength(JSON.stringify(metadata), 'utf8') > MAX_METADATA_BYTES) return null;
   return { userId: source.userId, action: source.action, targetType, targetId, metadata };
 };
 

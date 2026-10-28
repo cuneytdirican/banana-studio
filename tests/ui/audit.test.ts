@@ -27,4 +27,17 @@ describe('audit events', () => {
       metadata: { blob: 'x'.repeat(5_000) },
     })).toBeNull();
   });
+
+  it('rejects server-only actions from the client endpoint', () => {
+    expect(normalizeAuditEvent({ userId: 'u', action: 'generation.accepted' })).toBeNull();
+    expect(normalizeAuditEvent({ userId: 'u', action: 'generation.rejected_quota' })).toBeNull();
+  });
+
+  it('counts metadata as UTF-8 bytes', () => {
+    expect(normalizeAuditEvent({
+      userId: 'u',
+      action: 'share.created',
+      metadata: { blob: 'ş'.repeat(2_000) },
+    })).toBeNull();
+  });
 });
