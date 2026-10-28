@@ -15,6 +15,7 @@ const {
   FrameCaptureError,
   MAX_FRAME_EDGE,
   buildFrameFilename,
+  captureFrameFromUrl,
   captureVideoFrame,
   clampTimestamp,
   computeFrameDimensions,
@@ -194,4 +195,108 @@ test('frame capture errors have user-facing English messages', () => {
   assert.match(getFrameCaptureErrorMessage(new FrameCaptureError('unsupported', 'x')), /cannot capture/i);
   assert.equal(getFrameCaptureErrorMessage(new Error('custom failure')), 'custom failure');
   assert.match(getFrameCaptureErrorMessage('nope'), /could not be captured/i);
+});
+
+const makeCanvas = () => ({
+  width: 0,
+  height: 0,
+  getContext: () => ({ drawImage() {} }),
+  toDataURL: () => 'data:image/png;base64,AAAA',
+});
+
+const makeVideo = ({ duration = 5, fail = false, emitEvents = true } = {}) => {
+  const listeners = new Map();
+  const video = {
+    crossOrigin: null,
+    muted: false,
+    playsInline: false,
+    preload: '',
+    duration,
+    videoWidth: 640,
+    videoHeight: 360,
+    readyState: 0,
+    _time: 0,
+    error: null,
+    addEventListener(name, fn, options) {
+      const entries = listeners.get(name) || [];
+      listeners.set(name, [...entries, { fn, once: options?.once }]);
+    },
+    removeEventListener(name, fn) {
+      listeners.set(name, (listeners.get(name) || []).filter(entry => entry.fn !== fn));
+    },
+    emit(name) {
+      const entries = listeners.get(name) || [];
+      listeners.delete(name);
+      for (const { fn } of entries) fn({ type: name });
+    },
+    pause() {},
+    load() {},
+    removeAttribute() { this._src = undefined; },
+    get src() { return this._src; },
+    set src(value) {
+      this._src = value;
+      if (!emitEvents) return;
+      queueMicrotask(() => {
+        if (fail) {
+          this.error = { code: 4 };
+          this.emit('error');
+        } else {
+          this.readyState = 2;
+          this.emit('loadedmetadata');
+        }
+      });
+    },
+    get currentTime() { return this._time; },
+    set currentTime(value) {
+      this._time = value;
+      queueMicrotask(() => {
+        this.readyState = 2;
+        this.emit('seeked');
+      });
+    },
+  };
+  return video;
+};
+
+test('cross-origin fallback loads a CORS-annotated element at the requested timestamp', async () => {
+  const previousDocument = globalThis.document;
+  const video = makeVideo();
+  try {
+    globalThis.document = {
+      createElement: tag => tag === 'video' ? video : makeCanvas(),
+    };
+    const frame = await captureFrameFromUrl('https://cdn.example/video.mp4#t=0.1', 3.25);
+    assert.equal(video.crossOrigin, 'anonymous');
+    assert.equal(frame.timestamp, 3.25);
+    assert.deepEqual({ width: frame.width, height: frame.height }, { width: 640, height: 360 });
+    assert.equal(video.src, undefined, 'the temporary source is released after capture');
+
+    const clamped = await captureFrameFromUrl('https://cdn.example/video.mp4', 99);
+    assert.equal(clamped.timestamp, 5);
+  } finally {
+    globalThis.document = previousDocument;
+  }
+});
+
+test('cross-origin fallback reports load and CORS failures instead of saving a file', async () => {
+  const previousDocument = globalThis.document;
+  try {
+    globalThis.document = {
+      createElement: tag => tag === 'video' ? makeVideo({ fail: true }) : makeCanvas(),
+    };
+    await assert.rejects(
+      captureFrameFromUrl('https://cdn.example/video.mp4', 1),
+      error => error instanceof FrameCaptureError && error.code === 'tainted-video',
+    );
+
+    globalThis.document = {
+      createElement: tag => tag === 'video' ? makeVideo({ emitEvents: false }) : makeCanvas(),
+    };
+    await assert.rejects(
+      captureFrameFromUrl('https://cdn.example/video.mp4', 1, undefined, 10),
+      error => error instanceof FrameCaptureError && error.code === 'metadata-unavailable',
+    );
+  } finally {
+    globalThis.document = previousDocument;
+  }
 });

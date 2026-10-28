@@ -1,6 +1,6 @@
 import { PROVIDER_LABELS } from '../lib/providers';
 import { isLocalWorkspace } from '../lib/config/runtimeConfig';
-import { buildFrameFilename, captureVideoFrame, getFrameCaptureErrorMessage, type CapturedFrame, type CapturedFrameSaveRequest } from '../lib/video/frameCapture';
+import { buildFrameFilename, captureFrameFromUrl, captureVideoFrame, FrameCaptureError, getFrameCaptureErrorMessage, type CapturedFrame, type CapturedFrameSaveRequest } from '../lib/video/frameCapture';
 import { getPersonGroups, getPersonId } from '../lib/references/personReferences';
 import { personColor } from './PersonAssignment';
 import { getImageOutputRatio, getImageResolutionLabel, hasImageSizeMismatch, SUNBURST_MODEL } from '../lib/images/openaiImage';
@@ -504,7 +504,17 @@ const CustomVideoPlayer: React.FC<{
     setCaptureError(null);
     setCaptureNotice(null);
     try {
-      const frame: CapturedFrame = captureVideoFrame(video);
+      let frame: CapturedFrame;
+      try {
+        frame = captureVideoFrame(video);
+      } catch (failure) {
+        const source = video.currentSrc || video.src;
+        if (!(failure instanceof FrameCaptureError) || failure.code !== 'tainted-video' || !source) throw failure;
+        // Cross-origin media taints the visible player's canvas even when the
+        // server allows CORS. Retry on a separate CORS-annotated element so
+        // the visible player keeps its non-CORS fetch mode.
+        frame = await captureFrameFromUrl(source, video.currentTime);
+      }
       const filename = buildFrameFilename(sourceVideoId, frame.timestamp);
       await onCaptureFrame({ ...frame, filename, sourceVideoId, folderId });
       if (captureOperationRef.current !== operation) return;

@@ -217,6 +217,77 @@ export const captureVideoFrame = (
   };
 };
 
+const waitForVideoEvent = (
+  video: HTMLVideoElement,
+  eventName: 'loadedmetadata' | 'loadeddata' | 'seeked',
+  timeoutMs: number,
+): Promise<void> => new Promise((resolve, reject) => {
+  let settled = false;
+  const finish = (error?: FrameCaptureError) => {
+    if (settled) return;
+    settled = true;
+    clearTimeout(timer);
+    video.removeEventListener(eventName, onReady);
+    video.removeEventListener('error', onError);
+    if (error) reject(error);
+    else resolve();
+  };
+  const onReady = () => finish();
+  const onError = () => finish(new FrameCaptureError(
+    'tainted-video',
+    'This video could not be loaded with cross-origin access.',
+  ));
+  const timer = setTimeout(() => finish(new FrameCaptureError(
+    'metadata-unavailable',
+    'The video did not load in time.',
+  )), timeoutMs);
+  video.addEventListener(eventName, onReady, { once: true });
+  video.addEventListener('error', onError, { once: true });
+});
+
+/**
+ * Loads a separate CORS-annotated video element for cross-origin sources.
+ * The visible player keeps its original fetch mode, so playback never breaks
+ * for sources without CORS headers. A source that cannot be read this way is
+ * reported as a tainted/CORS failure.
+ */
+export const captureFrameFromUrl = async (
+  src: string,
+  requestedTimestamp: number,
+  maxEdge = MAX_FRAME_EDGE,
+  timeoutMs = 20_000,
+): Promise<CapturedFrame> => {
+  if (typeof document === 'undefined') {
+    throw new FrameCaptureError('unsupported', 'Frame capture is not available in this environment.');
+  }
+  if (!src) {
+    throw new FrameCaptureError('unsupported', 'The video source is not available.');
+  }
+
+  const video = document.createElement('video');
+  video.crossOrigin = 'anonymous';
+  video.muted = true;
+  video.playsInline = true;
+  video.preload = 'auto';
+
+  try {
+    video.src = src;
+    await waitForVideoEvent(video, 'loadedmetadata', timeoutMs);
+    const timestamp = clampTimestamp(requestedTimestamp, video.duration);
+    if (video.readyState < 2) await waitForVideoEvent(video, 'loadeddata', timeoutMs);
+    if (Math.abs(video.currentTime - timestamp) > 0.01) {
+      video.currentTime = timestamp;
+      await waitForVideoEvent(video, 'seeked', timeoutMs);
+      if (video.readyState < 2) await waitForVideoEvent(video, 'loadeddata', timeoutMs);
+    }
+    return captureVideoFrame(video, maxEdge);
+  } finally {
+    video.pause();
+    video.removeAttribute('src');
+    video.load();
+  }
+};
+
 export const getFrameCaptureErrorMessage = (error: unknown): string => {
   if (error instanceof FrameCaptureError) {
     switch (error.code) {
