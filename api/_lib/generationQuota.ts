@@ -1,5 +1,42 @@
 import type { VercelResponse } from '@vercel/node';
 
+type QuotaAlert = {
+  scope: 'global' | 'provider';
+  userId: string;
+  provider?: string;
+  limit: number;
+};
+
+/**
+ * Optional operator alert. It is deliberately fire-and-forget: a webhook
+ * outage must never turn a quota rejection into a generation failure.
+ */
+export const sendQuotaAlert = async (alert: QuotaAlert): Promise<boolean> => {
+  const webhook = process.env.BANANA_QUOTA_ALERT_WEBHOOK?.trim();
+  if (!webhook || !/^https:\/\//i.test(webhook)) return false;
+  try {
+    const response = await fetch(webhook, {
+      method: 'POST',
+      redirect: 'error',
+      signal: AbortSignal.timeout(3_000),
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        type: 'generation_quota_rejected',
+        scope: alert.scope,
+        user_id: alert.userId,
+        provider: alert.provider || null,
+        limit: alert.limit,
+        at: new Date().toISOString(),
+      }),
+    });
+    if (!response.ok) console.warn('Quota alert webhook rejected the event', response.status);
+    return response.ok;
+  } catch (error) {
+    console.warn('Quota alert webhook failed', error);
+    return false;
+  }
+};
+
 /**
  * Opt-in per-user daily generation quota. Zero/unset keeps the existing
  * behaviour; a positive integer reserves a slot atomically through the
@@ -127,7 +164,10 @@ export const enforceDailyGenerationQuota = async (
       res.status(503).json({ error: 'Usage quota could not be verified. Try again shortly.' });
       return false;
     }
-    if (data !== true) return rejectQuota(res, globalLimit);
+    if (data !== true) {
+      void sendQuotaAlert({ scope: 'global', userId, limit: globalLimit });
+      return rejectQuota(res, globalLimit);
+    }
     reservedGlobal = true;
   }
 
@@ -139,6 +179,7 @@ export const enforceDailyGenerationQuota = async (
       return false;
     }
     if (data !== true) {
+      void sendQuotaAlert({ scope: 'provider', userId, provider, limit: providerLimit });
       if (reservedGlobal) await releaseGenerationQuotas(db, userId);
       return rejectProviderQuota(res, provider, providerLimit);
     }

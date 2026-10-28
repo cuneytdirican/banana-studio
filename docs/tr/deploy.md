@@ -71,6 +71,7 @@ Ortam değişkeni, Vercel'in uygulamaya verdiği isimli bir ayardır. Kurulum ek
 | `BANANA_CORS_ORIGIN` | İsteğe bağlı, virgülle ayrılmış çapraz kaynak izin listesi. Yalnızca aynı kaynak için boş bırak. | Hayır |
 | `BANANA_DAILY_GENERATION_LIMIT` | İsteğe bağlı kullanıcı başına günlük üretim sınırı. `0` veya boş sınırı kapatır. | Hayır |
 | `BANANA_DAILY_PROVIDER_LIMITS` | İsteğe bağlı sağlayıcı bazlı günlük limit JSON'u, örn. `{"openai":50,"fal":100}`. | Hayır |
+| `BANANA_QUOTA_ALERT_WEBHOOK` | Kota reddi uyarılarını alacak isteğe bağlı HTTPS webhook. | Hayır |
 | `OPENAI_API_KEY` | OpenAI anahtarı | GPT Image 2.5 ve/veya GPT-6.1 Sol için |
 | `OPENROUTER_API_KEY` | OpenRouter anahtarı | Başlangıç yaratıcı modeli Opus 5.5 için |
 | `GEMINI_API_KEY` | Google Gemini anahtarı | Gemini metin görevleri ve video analizi için |

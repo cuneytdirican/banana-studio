@@ -71,6 +71,7 @@ An environment variable is a named setting supplied to the application by Vercel
 | `BANANA_CORS_ORIGIN` | Optional comma-separated cross-origin allowlist. Leave unset for same-origin only. | No |
 | `BANANA_DAILY_GENERATION_LIMIT` | Optional per-user daily generation cap. `0` or unset disables it. | No |
 | `BANANA_DAILY_PROVIDER_LIMITS` | Optional JSON map of per-provider daily caps, e.g. `{"openai":50,"fal":100}`. | No |
+| `BANANA_QUOTA_ALERT_WEBHOOK` | Optional HTTPS webhook that receives quota rejection alerts. | No |
 | `OPENAI_API_KEY` | OpenAI key | For GPT Image 2.5 and/or GPT-6.1 Sol |
 | `OPENROUTER_API_KEY` | OpenRouter key | For Opus 5.5, the initial creative default |
 | `GEMINI_API_KEY` | Google Gemini key | For Gemini text tasks and footage analysis |
