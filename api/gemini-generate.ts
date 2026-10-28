@@ -79,7 +79,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   const writer = process.env.BANANA_RUNTIME === 'local' ? createUserScopedClient(req) : createServiceRoleClient();
   if (!writer) return res.status(503).json({ error: 'Audit logging is not configured.' });
-  if (!await enforceDailyGenerationQuota(createUserScopedClient(req), user.id, res)) return;
+  if (!await enforceDailyGenerationQuota(createUserScopedClient(req), user.id, res, 'gemini')) return;
 
   const startedAt = Date.now();
   const provider = createTaskDeadline(250_000, undefined, 'Gemini yanıt süresi aşıldı. İstek otomatik olarak tekrarlanmadı. Yeniden deneyebilirsin.');

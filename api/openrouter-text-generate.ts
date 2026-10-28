@@ -63,7 +63,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (streaming) { send({ type: 'error', error }); return res.end(); }
     return res.status(status).json({ error });
   };
-  if (!await enforceDailyGenerationQuota(createUserScopedClient(req), user.id, res)) {
+  if (!await enforceDailyGenerationQuota(createUserScopedClient(req), user.id, res, 'openrouter')) {
     await guard.finish('failed', null, 429);
     return;
   }

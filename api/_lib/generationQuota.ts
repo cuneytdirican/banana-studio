@@ -10,6 +10,22 @@ export const dailyGenerationLimit = (): number => {
   return Number.isFinite(value) && value > 0 ? Math.floor(value) : 0;
 };
 
+/** Optional JSON map, for example {"openai":50,"fal":100}. */
+export const providerDailyLimits = (): Record<string, number> => {
+  try {
+    const parsed = JSON.parse(process.env.BANANA_DAILY_PROVIDER_LIMITS || '{}');
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return {};
+    return Object.fromEntries(Object.entries(parsed)
+      .filter(([provider, value]) => /^[a-z0-9_-]{1,40}$/.test(provider) && Number.isFinite(Number(value)) && Number(value) > 0)
+      .map(([provider, value]) => [provider, Math.floor(Number(value))]));
+  } catch {
+    return {};
+  }
+};
+
+export const providerDailyLimit = (provider: string | undefined): number =>
+  provider ? providerDailyLimits()[provider] || 0 : 0;
+
 /** Records a provider-accepted request so the quota sees every billable path. */
 export const recordAcceptedUsage = async (
   db: any,
@@ -61,7 +77,15 @@ const rejectQuota = (res: VercelResponse, limit: number): false => {
   return false;
 };
 
-export const releaseDailyGenerationQuota = async (db: any, userId: string): Promise<void> => {
+const rejectProviderQuota = (res: VercelResponse, provider: string, limit: number): false => {
+  res.status(429).json({
+    code: 'DAILY_PROVIDER_LIMIT',
+    error: `Daily ${provider} generation limit reached (${limit}). Try again tomorrow or choose another provider.`,
+  });
+  return false;
+};
+
+export const releaseGenerationQuotas = async (db: any, userId: string, provider?: string): Promise<void> => {
   if (!userId || typeof db?.rpc !== 'function') return;
   try {
     const { error } = await db.rpc('release_generation_quota', { p_user_id: userId });
@@ -69,15 +93,25 @@ export const releaseDailyGenerationQuota = async (db: any, userId: string): Prom
   } catch (error) {
     console.warn('Generation quota release failed', error);
   }
+  if (provider) {
+    try {
+      const { error } = await db.rpc('release_generation_provider_quota', { p_user_id: userId, p_provider: provider });
+      if (error) console.warn('Provider quota release failed', error.message);
+    } catch (error) {
+      console.warn('Provider quota release failed', error);
+    }
+  }
 };
 
 export const enforceDailyGenerationQuota = async (
   db: any,
   userId: string,
   res: VercelResponse,
+  provider?: string,
 ): Promise<boolean> => {
-  const limit = dailyGenerationLimit();
-  if (!limit) return true;
+  const globalLimit = dailyGenerationLimit();
+  const providerLimit = providerDailyLimit(provider);
+  if (!globalLimit && !providerLimit) return true;
 
   // A quota without an atomic reservation is a spending bypass. Fail closed
   // when the RPC is unavailable instead of falling back to a racy count.
@@ -85,10 +119,30 @@ export const enforceDailyGenerationQuota = async (
     res.status(503).json({ error: 'Usage quota could not be verified. Try again shortly.' });
     return false;
   }
-  const { data, error } = await db.rpc('reserve_generation_quota', { p_limit: limit });
-  if (error) {
-    res.status(503).json({ error: 'Usage quota could not be verified. Try again shortly.' });
-    return false;
+
+  let reservedGlobal = false;
+  if (globalLimit) {
+    const { data, error } = await db.rpc('reserve_generation_quota', { p_limit: globalLimit });
+    if (error) {
+      res.status(503).json({ error: 'Usage quota could not be verified. Try again shortly.' });
+      return false;
+    }
+    if (data !== true) return rejectQuota(res, globalLimit);
+    reservedGlobal = true;
   }
-  return data === true ? true : rejectQuota(res, limit);
+
+  if (providerLimit && provider) {
+    const { data, error } = await db.rpc('reserve_generation_provider_quota', { p_provider: provider, p_limit: providerLimit });
+    if (error) {
+      if (reservedGlobal) await releaseGenerationQuotas(db, userId);
+      res.status(503).json({ error: 'Provider quota could not be verified. Try again shortly.' });
+      return false;
+    }
+    if (data !== true) {
+      if (reservedGlobal) await releaseGenerationQuotas(db, userId);
+      return rejectProviderQuota(res, provider, providerLimit);
+    }
+  }
+
+  return true;
 };

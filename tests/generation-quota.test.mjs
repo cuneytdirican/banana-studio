@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {
   dailyGenerationLimit,
   enforceDailyGenerationQuota,
+  providerDailyLimit,
 } from '../api/_lib/generationQuota.ts';
 
 const createResponse = () => ({
@@ -95,4 +96,41 @@ test('a missing reservation RPC fails closed instead of using a racy count', asy
     );
     assert.equal(response.statusCode, 503);
   });
+});
+
+test('providerDailyLimit parses and clamps the JSON map', () => {
+  process.env.BANANA_DAILY_PROVIDER_LIMITS = '{"fal":3,"OpenAI":5,"bad provider":9,"gemini":0}';
+  assert.equal(providerDailyLimit('fal'), 3);
+  assert.equal(providerDailyLimit('openai'), 0);
+  assert.equal(providerDailyLimit('gemini'), 0);
+  assert.equal(providerDailyLimit('missing'), 0);
+  delete process.env.BANANA_DAILY_PROVIDER_LIMITS;
+});
+
+test('a rejected provider reservation returns 429 and releases the global slot', async () => {
+  process.env.BANANA_DAILY_GENERATION_LIMIT = '5';
+  process.env.BANANA_DAILY_PROVIDER_LIMITS = '{"fal":1}';
+  const calls = [];
+  const db = {
+    rpc(name, args) {
+      calls.push(name);
+      if (name === 'reserve_generation_quota') return Promise.resolve({ data: true, error: null });
+      if (name === 'reserve_generation_provider_quota') {
+        assert.equal(args.p_provider, 'fal');
+        return Promise.resolve({ data: false, error: null });
+      }
+      if (name === 'release_generation_quota') return Promise.resolve({ data: null, error: null });
+      throw new Error(`unexpected RPC ${name}`);
+    },
+  };
+  const response = createResponse();
+  try {
+    assert.equal(await enforceDailyGenerationQuota(db, 'user-1', response, 'fal'), false);
+    assert.equal(response.statusCode, 429);
+    assert.equal(response.body.code, 'DAILY_PROVIDER_LIMIT');
+    assert.deepEqual(calls, ['reserve_generation_quota', 'reserve_generation_provider_quota', 'release_generation_quota']);
+  } finally {
+    delete process.env.BANANA_DAILY_GENERATION_LIMIT;
+    delete process.env.BANANA_DAILY_PROVIDER_LIMITS;
+  }
 });

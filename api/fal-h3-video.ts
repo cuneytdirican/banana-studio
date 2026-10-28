@@ -189,7 +189,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         if (!claimed) return res.status(409).json({ code: 'GENERATION_SUBMITTING', error: 'This saved video is already being submitted. Check the existing task instead of submitting again.' });
         let quotaAllowed = false;
         try {
-          quotaAllowed = await enforceDailyGenerationQuota(createUserScopedClient(req), user.id, res);
+          quotaAllowed = await enforceDailyGenerationQuota(createUserScopedClient(req), user.id, res, 'fal');
         } catch (quotaError) {
           console.error('H3 quota check failed', quotaError);
           if (!res.writableEnded) res.status(503).json({ error: 'Usage quota could not be verified. Try again shortly.' });
@@ -217,7 +217,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         quotaChecked = true;
         galleryClaim = { id: body.generationId, metadata: claimedMetadata };
       }
-      if (!quotaChecked && !await enforceDailyGenerationQuota(createUserScopedClient(req), user.id, res)) return;
+      if (!quotaChecked && !await enforceDailyGenerationQuota(createUserScopedClient(req), user.id, res, 'fal')) return;
       const response = await fetch(`${FAL_QUEUE_BASE}/${endpoint}`, {
         method: 'POST',
         headers: {

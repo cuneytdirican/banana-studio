@@ -120,7 +120,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
-    if (!await enforceDailyGenerationQuota(createUserScopedClient(req), user.id, res)) return;
+    if (!await enforceDailyGenerationQuota(createUserScopedClient(req), user.id, res, 'fal')) return;
     const registry = await prepareTaskRegistry(res);
     if (!registry) return;
     const response = await fetch(`${FAL_QUEUE_BASE}/${endpoint}`, {

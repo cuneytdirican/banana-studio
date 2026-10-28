@@ -188,7 +188,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     requestBody.model = model;
 
-    if (!await enforceDailyGenerationQuota(createUserScopedClient(req), user.id, res)) return;
+    if (!await enforceDailyGenerationQuota(createUserScopedClient(req), user.id, res, 'evolink')) return;
     const registry = await prepareTaskRegistry(res);
     if (!registry) return;
 
