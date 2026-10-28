@@ -19,6 +19,7 @@ import { clearPromptHistory, loadPromptHistory, recordPromptHistory, type Prompt
 import { AdminUserSummary, GenerationConfig, GeneratedMedia, Template, UserProfile, DEFAULT_IMAGE_MODEL, DEFAULT_VIDEO_MODEL, getActiveImageModel, isEnhancedPromptStale } from './types';
 import { generateMedia, brainstormIdeas, generatePromptVariation, isFalImageModel } from './services/geminiService';
 import * as workspaceStorage from './services/storageService';
+import { recordAuditEvent } from './services/auditService';
 import { resumeOpenAIImage, recoverOpenAIImage } from './services/openaiImageService';
 import { getOpenAIImageOptions, getOpenAIImageSize, SUNBURST_MODEL } from './lib/images/openaiImage';
 import { createBrainstormBatch, type BrainstormGenerationRequest } from './lib/brainstorm/brainstormGeneration';
@@ -1207,6 +1208,7 @@ const AuthorizedWorkspace: React.FC<{
     setGeneratedMedia(prev => prev.filter(m => m.id !== media.id));
     try {
       await deleteImage(media);
+      void recordAuditEvent({ action: 'media.deleted', targetType: 'media', targetId: media.id }).catch(() => {});
     } catch (e) {
       console.error("Delete failed", e);
       toast.error('Delete Failed', 'Could not fully delete the image. It will be retried automatically.');
@@ -1218,6 +1220,11 @@ const AuthorizedWorkspace: React.FC<{
     setGeneratedMedia(prev => prev.filter(m => !mediaIds.includes(m.id)));
     try {
       await deleteImages(toDelete);
+      void recordAuditEvent({
+        action: 'media.deleted',
+        targetType: 'media',
+        metadata: { count: toDelete.length, ids: toDelete.slice(0, 20).map(media => media.id) },
+      }).catch(() => {});
       toast.success('Images Deleted', `${toDelete.length} image${toDelete.length > 1 ? 's' : ''} removed.`);
     } catch (e) {
       console.error("Batch delete failed", e);
@@ -1288,6 +1295,12 @@ const AuthorizedWorkspace: React.FC<{
       const result = await deleteFolder(folderId);
       const deletedMediaIds = new Set(result.mediaIds);
       setGeneratedMedia(prev => prev.filter(media => !deletedMediaIds.has(media.id)));
+      void recordAuditEvent({
+        action: 'folder.deleted',
+        targetType: 'folder',
+        targetId: folderId,
+        metadata: { folders: result.folderIds.length, media: result.mediaIds.length },
+      }).catch(() => {});
       toast.success(
         'Folder Deleted',
         `${result.folderIds.length} folder${result.folderIds.length === 1 ? '' : 's'} and ${result.mediaIds.length} item${result.mediaIds.length === 1 ? '' : 's'} permanently deleted.`
@@ -1773,7 +1786,14 @@ const AuthorizedWorkspace: React.FC<{
         onEditGenerate={async editConfig => {
           if (adminGalleryUser) throw new Error('This gallery is read-only.');
           validateImageGenerationReferences(editConfig);
-          return await handleGenerate(editConfig, true) as string[];
+          const result = await handleGenerate(editConfig, true) as string[];
+          void recordAuditEvent({
+            action: 'media.edited',
+            targetType: 'media',
+            targetId: editConfig.referenceImages?.[0]?.id,
+            metadata: { model: editConfig.imageModel },
+          }).catch(() => {});
+          return result;
         }}
         onCancelBrainstorm={handleCancelBrainstorm}
         onDelete={handleDelete}
