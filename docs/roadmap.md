@@ -39,11 +39,14 @@ shows measured costs from `usage_logs`.
 Acceptance: a 10k-item gallery stays responsive; saved views round-trip through
 the local workspace.
 
-## Phase 4 — Brand kit and export
+## Phase 4 — Brand kit and export presets (delivered in #58)
 
-- Brand colors, fonts, logos and thumbnail safe zones.
-- Text overlay and template variables for exact typography.
-- Export presets for YouTube, Shorts, Instagram and X, with watermark options.
+- Per-user brand name, primary/accent colors, font, logo and safe margin.
+- Branded contact sheets with logo, accent rule and brand typography.
+- Cover-fit export presets for YouTube, Shorts/Reels, Instagram, X/LinkedIn and
+  thumbnails, with the prompt title, brand name and optional logo overlay.
+- Brand assets are stored locally per user; an optional watermark toggle and
+  team-wide brand kits remain follow-up work.
 
 Acceptance: an exported thumbnail matches the selected preset dimensions and
 keeps its brand assets in both cloud and desktop builds.

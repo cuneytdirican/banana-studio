@@ -7,6 +7,7 @@ import {
   runGalleryQa,
   type GalleryQaSeverity,
 } from '../lib/gallery/intelligence';
+import type { BrandKit } from '../lib/brand/kit';
 import type { GeneratedMedia } from '../types';
 
 type Tab = 'duplicates' | 'qa' | 'export';
@@ -18,11 +19,13 @@ const severityClass = (severity: GalleryQaSeverity) => severity === 'error'
 export const GalleryIntelligenceDialog = ({
   open,
   images,
+  brandKit,
   onClose,
   onSelect,
 }: {
   open: boolean;
   images: GeneratedMedia[];
+  brandKit?: BrandKit;
   onClose: () => void;
   onSelect: (id: string) => void;
 }) => {
@@ -54,7 +57,7 @@ export const GalleryIntelligenceDialog = ({
       setScanError('Allow pop-ups to open the contact sheet.');
       return;
     }
-    sheet.document.write(buildContactSheetHtml(images));
+    sheet.document.write(buildContactSheetHtml(images, `${brandKit?.name || 'Banana Studio'} contact sheet`, brandKit));
     sheet.document.close();
     sheet.focus();
     sheet.print();

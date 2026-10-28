@@ -12,6 +12,8 @@ import { useWorkspaceSession } from './hooks/useWorkspaceSession';
 import { useGalleryHash } from './hooks/useGalleryHash';
 import { requestNotificationPermission, useJobNotifications } from './hooks/useJobNotifications';
 import { ModelPlayground } from './components/ModelPlayground';
+import { BrandKitDialog } from './components/BrandKitDialog';
+import { DEFAULT_BRAND_KIT, loadBrandKit, saveBrandKit, type BrandKit } from './lib/brand/kit';
 import { LazyBoundary } from './components/LazyBoundary';
 import { clearPromptHistory, loadPromptHistory, recordPromptHistory, type PromptHistoryEntry } from './lib/prompts/promptHistoryStore';
 import { AdminUserSummary, GenerationConfig, GeneratedMedia, Template, UserProfile, DEFAULT_IMAGE_MODEL, DEFAULT_VIDEO_MODEL, getActiveImageModel, isEnhancedPromptStale } from './types';
@@ -152,6 +154,8 @@ const AuthorizedWorkspace: React.FC<{
   const [imageCostHistory, setImageCostHistory] = useState<{ userId: string; samples: ImageCostSample[] } | null>(null);
   const [templates, setTemplates] = useState<Template[]>([]);
   const [promptHistory, setPromptHistory] = useState<PromptHistoryEntry[]>([]);
+  const [brandKit, setBrandKit] = useState<BrandKit>(DEFAULT_BRAND_KIT);
+  const [isBrandKitOpen, setIsBrandKitOpen] = useState(false);
   const [isPlaygroundOpen, setIsPlaygroundOpen] = useState(false);
   const [isInitialGalleryLoading, setIsInitialGalleryLoading] = useState(false);
   const [isGalleryIndexLoading, setIsGalleryIndexLoading] = useState(false);
@@ -247,6 +251,7 @@ const AuthorizedWorkspace: React.FC<{
         setGeneratedMedia(current => mergeLoadedGalleryHistory(current, migratedHistory, historyLoadStartedAt));
         setTemplates(normalizedTemplates);
         setPromptHistory(loadPromptHistory(userId));
+        setBrandKit(loadBrandKit(userId));
         
         // Resume pending/processing videos and recover rows that were marked
         // failed only because the provider status endpoint returned a transient
@@ -1670,6 +1675,11 @@ const AuthorizedWorkspace: React.FC<{
 
   const handleClearPromptHistory = () => setPromptHistory(clearPromptHistory(userId));
 
+  const handleSaveBrandKit = (kit: BrandKit) => {
+    setBrandKit(saveBrandKit(userId, kit));
+    toast.success('Brand kit saved', 'Export presets and contact sheets now use it.');
+  };
+
   const handleApplyPlayground = (patch: Partial<GenerationConfig>) => {
     setConfig(prev => ({ ...prev, ...patch }));
     setIsPlaygroundOpen(false);
@@ -1714,7 +1724,7 @@ const AuthorizedWorkspace: React.FC<{
   return (
     <div className="relative h-screen w-full bg-[#0d1117] text-white font-sans selection:bg-violet-500/30 flex flex-col overflow-hidden">
 
-      <WorkspaceBar profile={userProfile} onOpenAdmin={() => setIsAdminPanelOpen(true)} onOpenPlayground={() => setIsPlaygroundOpen(true)} onSignOut={handleSignOut} />
+      <WorkspaceBar profile={userProfile} onOpenAdmin={() => setIsAdminPanelOpen(true)} onOpenPlayground={() => setIsPlaygroundOpen(true)} onOpenBrandKit={() => setIsBrandKitOpen(true)} onSignOut={handleSignOut} />
       {/* Admin Panel */}
       {!isLocalWorkspace() && userProfile?.role === 'admin' && (
         <LazyBoundary label="Workspace admin">
@@ -1737,7 +1747,16 @@ const AuthorizedWorkspace: React.FC<{
         onApply={handleApplyPlayground}
       />
 
+      {isBrandKitOpen && (
+        <BrandKitDialog
+          kit={brandKit}
+          onClose={() => setIsBrandKitOpen(false)}
+          onSave={handleSaveBrandKit}
+        />
+      )}
+
       <Gallery
+        brandKit={brandKit}
         key={adminGalleryUser?.user_id || 'own-gallery'}
         images={displayedMedia}
         currentFolderId={currentFolderId}

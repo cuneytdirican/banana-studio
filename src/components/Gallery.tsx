@@ -24,6 +24,8 @@ import { buildFolderPreviewIndex } from './folderPreviews';
 import { groupBrainstormImages } from './galleryOrdering';
 import { buildExportMetadata } from '../lib/gallery/exportMetadata';
 import { GalleryIntelligenceDialog } from './GalleryIntelligenceDialog';
+import { ExportPresetMenu } from './ExportPresetMenu';
+import { DEFAULT_BRAND_KIT, type BrandKit } from '../lib/brand/kit';
 import { LazyBoundary } from './LazyBoundary';
 import { getGalleryAspectRatio, getGalleryCardStyle, getGallerySwipeDirection, isGalleryDismissSwipe, getNavigableGalleryMedia, type GallerySwipeStart } from './galleryPresentation';
 import { GALLERY_DRAG_TYPE, GALLERY_DRAG_ID, GALLERY_DRAG_MEDIA_IDS, getDraggedMediaIds, readGalleryDragPayload, getMediaIdsForMove, canMoveGalleryFolder, type GalleryDragPayload } from './galleryDragDrop';
@@ -69,6 +71,7 @@ interface GalleryProps {
   onDismissAllToasts?: () => void;
   // User props
   userProfile?: UserProfile | null;
+  brandKit?: BrandKit;
   onSignOut?: () => void;
   onOpenAdmin?: () => void;
   galleryOwner?: AdminUserSummary | null;
@@ -112,6 +115,7 @@ export const Gallery: React.FC<GalleryProps> = ({
   onDismissToast,
   onDismissAllToasts,
   userProfile,
+  brandKit = DEFAULT_BRAND_KIT,
   onSignOut,
   onOpenAdmin,
   galleryOwner = null,
@@ -1327,6 +1331,7 @@ export const Gallery: React.FC<GalleryProps> = ({
       <GalleryIntelligenceDialog
         open={isIntelligenceOpen}
         images={images}
+        brandKit={brandKit}
         onClose={() => setIsIntelligenceOpen(false)}
         onSelect={id => { setSelectedMediaId(id); setIsIntelligenceOpen(false); }}
       />
@@ -1852,15 +1857,21 @@ export const Gallery: React.FC<GalleryProps> = ({
                 </button>
               )}
               {!isPhotoDevice && (
-                <button
-                  onClick={handleBatchDownload}
-                  disabled={isDownloadingBatch || isMoving}
-                  aria-label="Download selected media as ZIP"
-                  className="flex h-10 items-center gap-2 rounded-xl border border-white/[0.08] bg-[#161b22] px-3 text-xs font-semibold text-gray-300 transition-colors hover:border-white/15 hover:text-white disabled:cursor-wait disabled:opacity-60"
-                >
-                  {isDownloadingBatch ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
-                  <span className="hidden md:inline">Download ZIP</span>
-                </button>
+                <>
+                  <button
+                    onClick={handleBatchDownload}
+                    disabled={isDownloadingBatch || isMoving}
+                    aria-label="Download selected media as ZIP"
+                    className="flex h-10 items-center gap-2 rounded-xl border border-white/[0.08] bg-[#161b22] px-3 text-xs font-semibold text-gray-300 transition-colors hover:border-white/15 hover:text-white disabled:cursor-wait disabled:opacity-60"
+                  >
+                    {isDownloadingBatch ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+                    <span className="hidden md:inline">Download ZIP</span>
+                  </button>
+                  <ExportPresetMenu
+                    images={images.filter(media => selectedIds.has(media.id))}
+                    brandKit={brandKit}
+                  />
+                </>
               )}
               </>}
               </div>

@@ -1,3 +1,4 @@
+import type { BrandKit } from '../brand/kit';
 import type { GeneratedMedia } from '../../types';
 
 export type GalleryQaSeverity = 'error' | 'warning';
@@ -100,7 +101,18 @@ const escapeHtml = (value: string): string => value
   .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
   .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 
-export const buildContactSheetHtml = (images: GeneratedMedia[], title = 'Banana Studio contact sheet'): string => {
+export const buildContactSheetHtml = (
+  images: GeneratedMedia[],
+  title = 'Banana Studio contact sheet',
+  brandKit?: BrandKit,
+): string => {
+  const brandName = brandKit?.name || 'Banana Studio';
+  const primary = brandKit?.primaryColor || '#111111';
+  const accent = brandKit?.accentColor || '#b5e92a';
+  const font = brandKit?.fontFamily || 'ui-sans-serif';
+  const logo = brandKit?.logoDataUrl
+    ? `<img class="logo" src="${escapeHtml(brandKit.logoDataUrl)}" alt="${escapeHtml(brandName)} logo" />`
+    : '';
   const cards = images.filter(media => !media.isLoading && media.url).map(media => `
     <figure>
       ${media.mediaType === 'video'
@@ -115,7 +127,9 @@ export const buildContactSheetHtml = (images: GeneratedMedia[], title = 'Banana 
   return `<!doctype html><html><head><meta charset="utf-8"><title>${escapeHtml(title)}</title>
   <style>
     @page { size: A4; margin: 12mm; }
-    body { font-family: ui-sans-serif, system-ui, sans-serif; color: #111; margin: 0; }
+    body { font-family: ${escapeHtml(font)}, ui-sans-serif, system-ui, sans-serif; color: ${escapeHtml(primary)}; margin: 0; }
+    header { display: flex; align-items: center; justify-content: space-between; gap: 12px; border-bottom: 3px solid ${escapeHtml(accent)}; padding-bottom: 8px; }
+    .logo { max-height: 38px; max-width: 140px; object-fit: contain; }
     h1 { font-size: 18px; margin: 0 0 4px; }
     p.meta { color: #666; font-size: 11px; margin: 0 0 14px; }
     main { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
@@ -128,8 +142,7 @@ export const buildContactSheetHtml = (images: GeneratedMedia[], title = 'Banana 
     figcaption span { color: #444; max-height: 3.9em; }
     figcaption em { color: #666; font-style: normal; margin-top: 2px; }
   </style></head><body>
-  <h1>${escapeHtml(title)}</h1>
-  <p class="meta">${images.length} item${images.length === 1 ? '' : 's'} · printed ${new Date().toLocaleString()}</p>
+  <header><div><h1>${escapeHtml(title)}</h1><p class="meta">${escapeHtml(brandName)} · ${images.length} item${images.length === 1 ? '' : 's'} · printed ${new Date().toLocaleString()}</p></div>${logo}</header>
   <main>${cards}</main>
   </body></html>`;
 };
