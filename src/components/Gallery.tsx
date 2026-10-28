@@ -23,6 +23,7 @@ import { FolderPreview } from './FolderPreview';
 import { buildFolderPreviewIndex } from './folderPreviews';
 import { groupBrainstormImages } from './galleryOrdering';
 import { buildExportMetadata } from '../lib/gallery/exportMetadata';
+import { GalleryIntelligenceDialog } from './GalleryIntelligenceDialog';
 import { getGalleryAspectRatio, getGalleryCardStyle, getGallerySwipeDirection, isGalleryDismissSwipe, getNavigableGalleryMedia, type GallerySwipeStart } from './galleryPresentation';
 import { GALLERY_DRAG_TYPE, GALLERY_DRAG_ID, GALLERY_DRAG_MEDIA_IDS, getDraggedMediaIds, readGalleryDragPayload, getMediaIdsForMove, canMoveGalleryFolder, type GalleryDragPayload } from './galleryDragDrop';
 
@@ -223,6 +224,7 @@ export const Gallery: React.FC<GalleryProps> = ({
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const [isGridMenuOpen, setIsGridMenuOpen] = useState(false);
   const [isHelpCenterOpen, setIsHelpCenterOpen] = useState(false);
+  const [isIntelligenceOpen, setIsIntelligenceOpen] = useState(false);
   const gridMenuRef = useRef<HTMLDivElement>(null);
   const userMenuRef = useRef<HTMLDivElement>(null);
 
@@ -1319,6 +1321,13 @@ export const Gallery: React.FC<GalleryProps> = ({
       onDragEnd={clearDragState}
     >
 
+      <GalleryIntelligenceDialog
+        open={isIntelligenceOpen}
+        images={images}
+        onClose={() => setIsIntelligenceOpen(false)}
+        onSelect={id => { setSelectedMediaId(id); setIsIntelligenceOpen(false); }}
+      />
+
       <React.Suspense fallback={null}>
         <HelpCenter open={isHelpCenterOpen} onClose={() => setIsHelpCenterOpen(false)} />
         {sharingFolder && !isReadOnly && <FolderShareDialog key={sharingFolder.id} folder={sharingFolder} onClose={() => setSharingFolder(null)} />}
@@ -1569,6 +1578,16 @@ export const Gallery: React.FC<GalleryProps> = ({
           </div>
 
           <div className="order-2 ml-auto flex shrink-0 items-center gap-1.5 md:order-3 sm:gap-2">
+            <button
+              onClick={() => setIsIntelligenceOpen(true)}
+              aria-label="Open gallery intelligence"
+              aria-haspopup="dialog"
+              aria-expanded={isIntelligenceOpen}
+              title="Gallery intelligence"
+              className="grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-white/[0.08] bg-[#161b22] text-gray-400 transition-colors hover:border-violet-400/40 hover:text-white"
+            >
+              <ShieldCheck className="h-4 w-4" />
+            </button>
             <button ref={searchButtonRef} onClick={openSearch} aria-label="Search gallery" aria-haspopup="dialog" aria-expanded={isSearchOpen} aria-keyshortcuts="Meta+K Control+K /" title="Search gallery (⌘K / Ctrl+K or /)"
               className="flex h-10 min-w-10 shrink-0 items-center justify-center gap-2 rounded-xl border border-white/[0.08] bg-[#161b22] px-3 text-gray-400 transition-colors hover:border-violet-400/40 hover:text-white">
               <Search className="h-4 w-4" /><span className="hidden xl:inline text-sm">Search</span><kbd className="hidden 2xl:inline text-[10px] text-gray-500">⌘ / Ctrl K</kbd>
