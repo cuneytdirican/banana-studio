@@ -10,6 +10,7 @@ const AdminPanel = React.lazy(() => import('./components/AdminPanel').then(modul
 import { useToast } from './components/Toast';
 import { useWorkspaceSession } from './hooks/useWorkspaceSession';
 import { useGalleryHash } from './hooks/useGalleryHash';
+import { useJobNotifications } from './hooks/useJobNotifications';
 import { AdminUserSummary, GenerationConfig, GeneratedMedia, Template, UserProfile, DEFAULT_IMAGE_MODEL, DEFAULT_VIDEO_MODEL, getActiveImageModel, isEnhancedPromptStale } from './types';
 import { generateMedia, brainstormIdeas, generatePromptVariation, isFalImageModel } from './services/geminiService';
 import * as workspaceStorage from './services/storageService';
@@ -123,6 +124,7 @@ const AuthorizedWorkspace: React.FC<{
 
   // Track how many requests are currently active
   const [activeRequests, setActiveRequests] = useState<number>(0);
+  useJobNotifications(activeRequests);
   const [isBrainstormPreparing, setIsBrainstormPreparing] = useState(false);
   const [promptLoadVersion, setPromptLoadVersion] = useState(0);
   const recreateLoadIdRef = useRef(0);
@@ -1252,6 +1254,12 @@ const AuthorizedWorkspace: React.FC<{
     }
   };
 
+  const handleUpdateTags = useCallback(async (id: string, tags: string[]) => {
+    if (adminGalleryUser) throw new Error('This gallery is read-only.');
+    const normalized = await withWorkspaceSession(workspaceStorage.updateMediaTags)(id, tags, userProfile?.id);
+    setGeneratedMedia(prev => prev.map(item => item.id === id ? { ...item, tags: normalized } : item));
+  }, [adminGalleryUser, userProfile?.id, withWorkspaceSession]);
+
   const handleMoveFolder = async (folderId: string, targetParentId: string | null) => {
     try {
       await moveFolderToFolder(folderId, targetParentId);
@@ -1709,6 +1717,7 @@ const AuthorizedWorkspace: React.FC<{
         onDelete={handleDelete}
         onDeleteMultiple={handleDeleteMultiple}
         onToggleFavorite={handleToggleFavorite}
+        onUpdateTags={adminGalleryUser ? undefined : handleUpdateTags}
         onMove={handleMoveImages}
         onMoveFolder={handleMoveFolder}
         onDeleteFolder={handleDeleteFolder}

@@ -9,6 +9,7 @@ import { signMediaUrl } from '../lib/references/mediaAccess';
 import { Upload } from 'tus-js-client';
 import { MAX_VIDEO_UPLOAD_BYTES, MAX_VIDEO_UPLOAD_MB } from '../lib/references/mediaUploadLimits';
 import { normalizeH3MaxMode, H3_MAX_ENDPOINTS } from '../lib/video/h3Max';
+import { normalizeTags } from '../lib/gallery/tags';
 import { estimateH3MaxCost } from '../lib/video/h3MaxPricing';
 
 import { compressImage, createThumbnail, createVideoThumbnail, estimateBase64Size } from './storage/mediaProcessing';
@@ -525,6 +526,7 @@ const mapRowToMedia = (row: any): GeneratedMedia => {
     aspectRatio: row.aspect_ratio || '1:1',
     resolution: row.resolution || '1K',
     imageModel: isVideo ? undefined : (row.image_model || row.imageModel || DEFAULT_IMAGE_MODEL),
+    seed: Number.isInteger(meta.seed) ? meta.seed : undefined,
     openaiImageOptions: meta.openaiImageOptions,
     imageOutputSize: meta.imageOutputSize,
     imageEditProtection: meta.imageEditProtection,
@@ -542,6 +544,7 @@ const mapRowToMedia = (row: any): GeneratedMedia => {
     referenceImages: (row.reference_images || []).map((ref: any) => withoutLegacyMask({ ...ref, data: resolveMediaReference(ref.data) })),
     folderId: row.folder_id || null,
     isFavorite: row.is_favorite || false,
+    tags: Array.isArray(meta.tags) ? normalizeTags(meta.tags) : undefined,
     mediaType: isVideo ? 'video' : 'image',
     videoModel,
     videoOperation: isVideo ? resolveVideoOperation(meta.videoOperation) : undefined,
@@ -908,7 +911,8 @@ export const saveImage = async (media: GeneratedMedia, expectedUserId?: string):
       // image; upsert replaces the JSON column wholesale.
       let existingImageMetadata: Record<string, unknown> = {};
       const hasImageMetadata = media.imageModel === 'gpt-image-2.5-sunburst' || media.imageEditSourceId
-        || media.imageEditProtection || media.promptPreparation || media.youtubeSource || media.originalPrompt != null;
+        || media.imageEditProtection || media.promptPreparation || media.youtubeSource || media.originalPrompt != null
+        || media.tags != null;
       if (hasImageMetadata) {
         const { data, error } = await supabase.from('generations').select('metadata').eq('id', media.id).maybeSingle();
         if (error) throw new Error(`Could not preserve the saved image details: ${error.message}`);
@@ -941,11 +945,14 @@ export const saveImage = async (media: GeneratedMedia, expectedUserId?: string):
           openaiStartedAt: media.openaiStartedAt, generationCost: media.generationCost,
           generationStartedAt: media.generationStartedAt, generationCompletedAt: media.generationCompletedAt,
           generationTime: media.generationTime,
+          seed: media.seed,
+          tags: normalizeTags(media.tags),
         } } : hasImageMetadata ? { metadata: { ...existingImageMetadata,
           ...(media.youtubeSource ? { youtubeSource: normalizeYouTubeSource(media.youtubeSource) } : {}),
           ...(media.promptPreparation ? { promptPreparation: normalizePromptPreparation(media.promptPreparation) } : {}), imageEditSourceId: media.imageEditSourceId,
           imageEditProtection: media.imageEditProtection, originalPrompt: media.originalPrompt,
-          imagePromptCategory: media.imagePromptCategory, imageOutputSize: media.imageOutputSize } } : {}),
+          imagePromptCategory: media.imagePromptCategory, imageOutputSize: media.imageOutputSize,
+          seed: media.seed, tags: normalizeTags(media.tags) } } : {}),
       };
 
       const generationInsertWithPaths = {
@@ -1003,6 +1010,30 @@ export const saveImage = async (media: GeneratedMedia, expectedUserId?: string):
   } catch {
     return undefined;
   }
+};
+
+/** Updates labels in place without re-encoding or re-uploading the media. */
+export const updateMediaTags = async (id: string, tags: string[], expectedUserId?: string): Promise<string[]> => {
+  const normalized = normalizeTags(tags);
+  const userId = await bindMediaSession();
+  if (expectedUserId && userId !== expectedUserId) throw new Error('Session changed. Sign in again to continue.');
+  if (supabase) {
+    const { data, error } = await supabase.from('generations').select('metadata').eq('id', id).maybeSingle();
+    if (error) throw new Error('Tags could not be loaded.');
+    const metadata = { ...(data?.metadata || {}), tags: normalized };
+    const { error: updateError } = await supabase.from('generations').update({ metadata }).eq('id', id);
+    if (updateError) throw new Error('Tags could not be saved.');
+    return normalized;
+  }
+  const db = await openDB();
+  const media = await new Promise<GeneratedMedia | null>((resolve, reject) => {
+    const request = db.transaction(STORE_NAME, 'readonly').objectStore(STORE_NAME).get(id);
+    request.onsuccess = () => resolve((request.result as GeneratedMedia | undefined) || null);
+    request.onerror = () => reject(request.error);
+  });
+  if (!media) throw new Error('This item is unavailable.');
+  await putImageInIndexedDb({ ...media, tags: normalized });
+  return normalized;
 };
 
 const mergeVideoMetadata = (existing: Record<string, any>, incoming: Record<string, any>): Record<string, any> => {

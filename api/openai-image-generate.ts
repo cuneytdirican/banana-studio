@@ -56,6 +56,7 @@ export async function executeOpenAIImage(req:VercelRequest,res:VercelResponse,co
   if (typeof body.prompt !== 'string' || !body.prompt.trim() || body.prompt.length > 32000) return res.status(400).json({ error: 'Prompt must contain 1–32,000 characters.' });
   if (!['1:1', '4:3', '3:4', '16:9', '9:16'].includes(body.aspectRatio) || !['1K', '2K', '4K'].includes(body.resolution)) return res.status(400).json({ error: 'Invalid ratio or resolution.' });
   if (body.options != null && (typeof body.options !== 'object' || Array.isArray(body.options))) return res.status(400).json({ error: 'Invalid image options.' });
+  if (body.seed != null && (!Number.isInteger(body.seed) || body.seed < 0 || body.seed > 2_147_483_647)) return res.status(400).json({ error: 'Invalid seed.' });
   let provider: AIProvider;
   try { provider = chooseProvider(body.model, body.provider ?? (context.guard && body.model === SUNBURST_MODEL ? 'openai' : 'auto')); } catch (error) { return res.status(503).json({ error: (error as Error).message }); }
   const key = process.env[PROVIDER_KEYS[provider]]!;
@@ -117,7 +118,7 @@ export async function executeOpenAIImage(req:VercelRequest,res:VercelResponse,co
     promptPreparation: normalizePromptPreparation(body.promptPreparation),
     openaiImageOptions: body.model !== SUNBURST_MODEL ? undefined : protectedSource ? { ...options, size: 'custom', width: protectedSource.info.width, height: protectedSource.info.height } : options,
     openaiStartedAt: startedAt, generationStartedAt: startedAt,
-    imagePromptCategory: body.imagePromptCategory, imageGenerationPrompt: generationPrompt,
+    imagePromptCategory: body.imagePromptCategory, imageGenerationPrompt: generationPrompt, seed: body.seed,
     imageGenerationReferenceIds: generationReferences.map(ref => ref.id), imageRequestedSize: body.model === SUNBURST_MODEL || protectedSource ? size : `${body.resolution} · ${body.aspectRatio}`, openaiAuditId: guard.id };
   if (editReference?.id.startsWith('gallery-')) metadata.imageEditSourceId = editReference.id.slice(8);
   try {
@@ -134,8 +135,9 @@ export async function executeOpenAIImage(req:VercelRequest,res:VercelResponse,co
       });
     }
 
-    const input: Record<string, unknown> = { resolution: body.resolution, aspect_ratio: body.aspectRatio,
-      model: body.model, prompt: generationPrompt, n: 1, size, quality: options.quality,
+  const input: Record<string, unknown> = { resolution: body.resolution, aspect_ratio: body.aspectRatio,
+    model: body.model, prompt: generationPrompt, n: 1, size, quality: options.quality,
+    ...(body.seed != null ? { seed: body.seed } : {}),
       background: options.background, output_format: options.outputFormat, moderation: options.moderation,
       user: user.id,
     };

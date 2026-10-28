@@ -10,6 +10,7 @@ import { addSavedPersonToDraft, findPersonMentions, getPersonDefinitions, getPer
 import { getImageCostPreview, type ImageCostSample } from '../lib/images/imageCostPreview';
 import { Dropdown } from './ControlDropdown';
 import { ImageCountControl, PROMPT_PANEL_CLASS, PROMPT_INPUT_CLASS, PROMPT_TEXTAREA_CLASS, PROMPT_TOOLBAR_CLASS, PROMPT_SETTINGS_CLASS, PROMPT_ACTIONS_CLASS, PROMPT_REVERT_CLASS, promptResizeClass, promptEnhanceClass, promptGenerateClass } from './PromptComposerUI';
+import { SeedControl } from './SeedControl';
 import { OpenAIImageSettings } from './OpenAIImageSettings';
 import { H3MaxDuration, H3MaxSettings, getH3MaxImageLabel, getH3MaxInputError, getH3MaxUIState } from './H3MaxSettings';
 import { estimateH3MaxCost } from '../lib/video/h3MaxPricing';
@@ -2587,6 +2588,7 @@ export const Controls: React.FC<ControlsProps> = ({
                       <Dropdown label="Resolution" value={config.resolution} options={resolutionOptions} onSelect={(val) => updateConfig('resolution', val)} icon={Scan} compact />
                     </>}
                     <ImageCountControl count={config.count} onChange={value => updateConfig('count', value)} />
+                    {!isSunburst && <SeedControl config={config} onChange={onChange} />}
                   </>
                 )}
             </div>

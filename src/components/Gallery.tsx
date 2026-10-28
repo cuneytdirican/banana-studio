@@ -22,6 +22,7 @@ import { Toast } from './Toast';
 import { FolderPreview } from './FolderPreview';
 import { buildFolderPreviewIndex } from './folderPreviews';
 import { groupBrainstormImages } from './galleryOrdering';
+import { buildExportMetadata } from '../lib/gallery/exportMetadata';
 import { getGalleryAspectRatio, getGalleryCardStyle, getGallerySwipeDirection, isGalleryDismissSwipe, getNavigableGalleryMedia, type GallerySwipeStart } from './galleryPresentation';
 import { GALLERY_DRAG_TYPE, GALLERY_DRAG_ID, GALLERY_DRAG_MEDIA_IDS, getDraggedMediaIds, readGalleryDragPayload, getMediaIdsForMove, canMoveGalleryFolder, type GalleryDragPayload } from './galleryDragDrop';
 
@@ -58,6 +59,7 @@ interface GalleryProps {
   onMoveFolder?: (folderId: string, targetParentId: string | null) => Promise<void> | void;
   onDeleteFolder: (folderId: string) => Promise<DeleteFolderResult>;
   onToggleFavorite?: (image: GeneratedMedia) => void;
+  onUpdateTags?: (id: string, tags: string[]) => Promise<void>;
   isHistoryOpen: boolean;
   // Toast/Notification props
   toasts?: Toast[];
@@ -80,6 +82,7 @@ import { LazyImage } from './gallery/LazyImage';
 import { LazyVideoPreview } from './gallery/LazyVideoPreview';
 import { CustomVideoPlayer } from './gallery/CustomVideoPlayer';
 import { RecoverImageButton } from './gallery/RecoverImageButton';
+import { TagsEditor } from './gallery/TagsEditor';
 
 export const Gallery: React.FC<GalleryProps> = ({
   images,
@@ -102,6 +105,7 @@ export const Gallery: React.FC<GalleryProps> = ({
   onMoveFolder,
   onDeleteFolder,
   onToggleFavorite,
+  onUpdateTags,
   toasts = [],
   onDismissToast,
   onDismissAllToasts,
@@ -1030,6 +1034,10 @@ export const Gallery: React.FC<GalleryProps> = ({
       });
 
       await Promise.all(promises);
+      zip.file('metadata.json', JSON.stringify({
+        exportedAt: new Date().toISOString(),
+        items: images.filter(img => selectedIds.has(img.id)).map(buildExportMetadata),
+      }, null, 2));
       const content = await zip.generateAsync({ type: "blob" });
       const url = window.URL.createObjectURL(content);
       const link = document.createElement('a');
@@ -2518,6 +2526,14 @@ export const Gallery: React.FC<GalleryProps> = ({
                   </div>
                 </div>
               </div>
+
+              {onUpdateTags && (
+                <TagsEditor
+                  media={selectedMedia}
+                  readOnly={isReadOnly}
+                  onUpdate={tags => onUpdateTags(selectedMedia.id, tags)}
+                />
+              )}
 
               <PromptPreparationDetails media={selectedMedia} />
 
