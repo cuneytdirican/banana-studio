@@ -1,9 +1,11 @@
 import { PROVIDER_LABELS } from '../lib/providers';
 import { isLocalWorkspace } from '../lib/config/runtimeConfig';
+import { buildFrameFilename, captureVideoFrame, getFrameCaptureErrorMessage, type CapturedFrame, type CapturedFrameSaveRequest } from '../lib/video/frameCapture';
 import { getPersonGroups, getPersonId } from '../lib/references/personReferences';
 import { personColor } from './PersonAssignment';
 import { getImageOutputRatio, getImageResolutionLabel, hasImageSizeMismatch, SUNBURST_MODEL } from '../lib/images/openaiImage';
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import { Camera } from 'lucide-react';
 import JSZip from 'jszip';
 import { isMobilePhotoDevice, preparePhotosForSharing, sharePreparedPhotos } from '../services/photoShareService';
 import { Link as ShareLink, Download, X, ZoomIn, ImagePlus, Grid3X3, Sparkles, Info, Copy, Check, Trash2, Image as ImageIcon, ChevronLeft, ChevronRight, ChevronDown, RotateCcw, RefreshCw, FolderPlus, Folder as FolderIcon, FolderOpen, ArrowLeft, MoreVertical, MousePointer2, Scan, Ratio, Layers, Pencil, Heart, MoreHorizontal, AlertCircle, Shuffle, Bell, CheckCircle, AlertTriangle, Loader2, Play, Pause, Video, Film, Clock, Volume2, VolumeX, CircleQuestionMark, ShieldCheck, Maximize2, Rewind, FastForward, Minus, Plus, Search, PanelRightClose, PanelRightOpen } from 'lucide-react';
@@ -65,6 +67,7 @@ interface GalleryProps {
   onRecoverImage?: (image: GeneratedMedia) => Promise<void>;
   onGenerateVariation?: (image: GeneratedMedia) => void;
   onEditGenerate?: (config: GenerationConfig) => Promise<string[]>;
+  onSaveCapturedFrame?: (request: CapturedFrameSaveRequest) => Promise<string>;
   imageEditTextModel?: TextModelId;
   onCancelBrainstorm?: (batchId: string) => void;
   onToggleHistory: () => void;
@@ -318,8 +321,11 @@ const LazyVideoPreview: React.FC<{
 
 const CustomVideoPlayer: React.FC<{
   src: string;
+  sourceVideoId: string;
+  folderId: string | null;
+  onCaptureFrame?: (request: CapturedFrameSaveRequest) => Promise<string>;
   onError?: () => void;
-}> = ({ src, onError }) => {
+}> = ({ src, sourceVideoId, folderId, onCaptureFrame, onError }) => {
   const stageRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -331,6 +337,9 @@ const CustomVideoPlayer: React.FC<{
   const [controlsVisible, setControlsVisible] = useState(true);
   const [videoAspectRatio, setVideoAspectRatio] = useState(16 / 9);
   const [playerSize, setPlayerSize] = useState<{ width: number; height: number } | null>(null);
+  const [isCapturingFrame, setIsCapturingFrame] = useState(false);
+  const [captureError, setCaptureError] = useState<string | null>(null);
+  const [captureNotice, setCaptureNotice] = useState<string | null>(null);
   const controlsHideTimerRef = useRef<number | null>(null);
 
   useEffect(() => {
@@ -341,6 +350,9 @@ const CustomVideoPlayer: React.FC<{
     setControlsVisible(true);
     setVideoAspectRatio(16 / 9);
     setPlayerSize(null);
+    setIsCapturingFrame(false);
+    setCaptureError(null);
+    setCaptureNotice(null);
   }, [src]);
 
   const clearControlsHideTimer = () => {
@@ -478,6 +490,27 @@ const CustomVideoPlayer: React.FC<{
     if (!video) return;
     video.currentTime = value;
     setCurrentTime(value);
+  };
+
+  const handleCaptureFrame = async () => {
+    const video = videoRef.current;
+    if (!video || !onCaptureFrame || isCapturingFrame) return;
+
+    revealControls();
+    setIsCapturingFrame(true);
+    setCaptureError(null);
+    setCaptureNotice(null);
+    try {
+      const frame: CapturedFrame = captureVideoFrame(video);
+      const filename = buildFrameFilename(sourceVideoId, frame.timestamp);
+      await onCaptureFrame({ ...frame, filename, sourceVideoId, folderId });
+      setCaptureNotice(`Frame at ${formatPlaybackTime(frame.timestamp)} saved to the gallery.`);
+    } catch (failure) {
+      setCaptureError(getFrameCaptureErrorMessage(failure));
+      setControlsVisible(true);
+    } finally {
+      setIsCapturingFrame(false);
+    }
   };
 
   const toggleMute = () => {
@@ -661,6 +694,36 @@ const CustomVideoPlayer: React.FC<{
           </div>
 
           <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/95 via-black/70 to-transparent px-3 pb-3 pt-10 sm:px-4">
+            {captureError && (
+              <p role="alert" className="mb-2 rounded-lg border border-red-400/30 bg-red-950/80 px-2.5 py-1.5 text-[11px] font-medium text-red-200">
+                {captureError}
+              </p>
+            )}
+            {captureNotice && (
+              <p role="status" className="mb-2 rounded-lg border border-emerald-400/25 bg-emerald-950/80 px-2.5 py-1.5 text-[11px] font-medium text-emerald-200">
+                {captureNotice}
+              </p>
+            )}
+            <div className="mb-1.5 flex flex-wrap items-center justify-between gap-2">
+              {onCaptureFrame && (
+                <button
+                  type="button"
+                  onClick={() => void handleCaptureFrame()}
+                  disabled={isCapturingFrame}
+                  aria-label={`Capture frame at ${formatPlaybackTime(currentTime)} and save it to the gallery`}
+                  title="Save the current video frame as a gallery image"
+                  className="flex min-h-11 items-center gap-2 rounded-lg border border-white/20 bg-white/10 px-3 py-1.5 text-xs font-semibold text-white shadow-sm backdrop-blur-md transition-colors hover:bg-white/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lime-300 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {isCapturingFrame ? <Loader2 className="h-4 w-4 animate-spin" /> : <Camera className="h-4 w-4" />}
+                  <span>{isCapturingFrame ? 'Capturing frame…' : 'Capture frame'}</span>
+                  <span className="font-mono font-normal tabular-nums text-white/70">{formatPlaybackTime(currentTime)}</span>
+                </button>
+              )}
+              <div className="ml-auto flex items-center gap-3 text-[11px] font-medium tabular-nums text-white/75">
+                <span>{formatPlaybackTime(currentTime)}</span>
+                <span>-{formatPlaybackTime(Math.max(0, duration - currentTime))}</span>
+              </div>
+            </div>
             <input
               type="range"
               min={0}
@@ -671,10 +734,6 @@ const CustomVideoPlayer: React.FC<{
               className="h-5 w-full cursor-pointer"
               aria-label="Video progress"
             />
-            <div className="mt-0.5 flex items-center justify-between text-[11px] font-medium tabular-nums text-white/75">
-              <span>{formatPlaybackTime(currentTime)}</span>
-              <span>-{formatPlaybackTime(Math.max(0, duration - currentTime))}</span>
-            </div>
           </div>
         </>
       )}
@@ -711,6 +770,7 @@ export const Gallery: React.FC<GalleryProps> = ({
   onRecoverImage,
   onGenerateVariation,
   onEditGenerate,
+  onSaveCapturedFrame,
   imageEditTextModel,
   onCancelBrainstorm,
   onDelete,
@@ -3087,6 +3147,13 @@ export const Gallery: React.FC<GalleryProps> = ({
               ) : (
                 <CustomVideoPlayer
                   src={selectedMedia.url}
+                  sourceVideoId={selectedMedia.id}
+                  folderId={selectedMedia.folderId ?? currentFolderId ?? null}
+                  onCaptureFrame={!isReadOnly && onSaveCapturedFrame ? async request => {
+                    const savedId = await onSaveCapturedFrame(request);
+                    setSelectedMediaId(savedId);
+                    return savedId;
+                  } : undefined}
                   onError={() => handleImageBroken(selectedMedia.id)}
                 />
               )
