@@ -40,6 +40,16 @@ export const recordAcceptedUsage = async (
       console.warn('Accepted generation usage could not be recorded', error.message);
       return false;
     }
+    try {
+      await db.from('audit_events').insert({
+        user_id: input.userId,
+        action: 'generation.accepted',
+        target_type: 'generation',
+        metadata: { model: input.model, action: input.action, imageCount: input.imageCount ?? 1 },
+      });
+    } catch (auditError) {
+      console.warn('Accepted generation audit event could not be recorded', auditError);
+    }
     return true;
   } catch (error) {
     console.warn('Accepted generation usage could not be recorded', error);

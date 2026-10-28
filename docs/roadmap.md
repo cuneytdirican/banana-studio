@@ -57,16 +57,22 @@ hash scan is client-side and bounded to 120 images.
 Acceptance: an exported thumbnail matches the selected preset dimensions and
 keeps its brand assets in both cloud and desktop builds.
 
-## Phase 5 — Team workflow
+## Phase 5 — Team workflow (audit foundation in #59)
 
+- Append-only `audit_events` table, server-side generation events and an admin
+  Audit tab. (Delivered in #59.)
 - Workspace roles: owner, editor, viewer and reviewer.
 - Image comments, approval state and revision requests.
 - Review links that work without an account and expire.
-- Audit log for generation, edit, delete and share actions.
+- Client-side audit events for delete/edit/share. (The service and endpoint are
+  ready; wiring the remaining UI actions is follow-up.)
 - Per-user and per-provider spend guardrails with alerts.
 
 Acceptance: RLS tests prove a viewer cannot write and a reviewer cannot see
 other workspaces; the audit log is append-only.
+
+Rollback: revert #59; the migration is additive and can be dropped without
+touching generations. Provider keys: none. Migration: `audit_events`.
 
 ## Phase 6 — Platform and ecosystem
 
