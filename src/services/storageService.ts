@@ -1066,7 +1066,8 @@ export const saveImage = async (media: GeneratedMedia, expectedUserId?: string):
       // image; upsert replaces the JSON column wholesale.
       let existingImageMetadata: Record<string, unknown> = {};
       const hasImageMetadata = media.imageModel === 'gpt-image-2.5-sunburst' || media.imageEditSourceId
-        || media.imageEditProtection || media.promptPreparation || media.youtubeSource || media.originalPrompt != null;
+        || media.imageEditProtection || media.promptPreparation || media.youtubeSource || media.originalPrompt != null
+        || media.imageOutputSize != null || media.imageRequestedSize != null || media.generationCost != null;
       if (hasImageMetadata) {
         const { data, error } = await supabase.from('generations').select('metadata').eq('id', media.id).maybeSingle();
         if (error) throw new Error(`Could not preserve the saved image details: ${error.message}`);
@@ -1103,7 +1104,8 @@ export const saveImage = async (media: GeneratedMedia, expectedUserId?: string):
           ...(media.youtubeSource ? { youtubeSource: normalizeYouTubeSource(media.youtubeSource) } : {}),
           ...(media.promptPreparation ? { promptPreparation: normalizePromptPreparation(media.promptPreparation) } : {}), imageEditSourceId: media.imageEditSourceId,
           imageEditProtection: media.imageEditProtection, originalPrompt: media.originalPrompt,
-          imagePromptCategory: media.imagePromptCategory, imageOutputSize: media.imageOutputSize } } : {}),
+          imagePromptCategory: media.imagePromptCategory, imageOutputSize: media.imageOutputSize,
+          imageRequestedSize: media.imageRequestedSize, generationCost: media.generationCost } } : {}),
       };
 
       const generationInsertWithPaths = {
