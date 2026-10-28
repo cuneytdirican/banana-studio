@@ -176,7 +176,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         if (saved.status !== 'pending' || metadata.h3SubmissionStartedAt) return res.status(409).json({
           code: 'GENERATION_SUBMITTING', error: 'This saved video was already submitted or its acceptance is uncertain. Do not submit again; check its saved task history and usage.',
         });
-        const claimedMetadata = { ...metadata, h3SubmissionStartedAt: Date.now(), h3MaxMode: mode, falEndpoint: endpoint };
+        const claimedMetadata = {
+          ...metadata,
+          h3SubmissionStartedAt: Date.now(),
+          h3ClaimToken: crypto.randomUUID(),
+          h3MaxMode: mode,
+          falEndpoint: endpoint,
+        };
         const { data: claimed, error: claimError } = await registry.from('generations')
           .update({ status: 'processing', metadata: claimedMetadata }).eq('id', body.generationId).eq('user_id', user.id).eq('status', 'pending').select('id').maybeSingle();
         if (claimError) return res.status(503).json({ error: 'The saved video could not be claimed. No provider request was sent.' });
@@ -193,12 +199,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           try {
             const { error: releaseError } = await registry.from('generations')
               .update({ status: 'pending', metadata })
-              .eq('id', body.generationId).eq('user_id', user.id).eq('status', 'processing');
+              .eq('id', body.generationId).eq('user_id', user.id)
+              .eq('metadata->>h3ClaimToken', String(claimedMetadata.h3ClaimToken));
             if (releaseError) {
               console.error('H3 claim release failed; forcing the claim back to pending', releaseError);
               const { error: forceError } = await registry.from('generations')
                 .update({ status: 'pending', metadata })
-                .eq('id', body.generationId).eq('user_id', user.id);
+                .eq('id', body.generationId).eq('user_id', user.id)
+                .eq('metadata->>h3ClaimToken', String(claimedMetadata.h3ClaimToken));
               if (forceError) console.error('H3 claim force-release failed', forceError);
             }
           } catch (releaseError) {
@@ -225,7 +233,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         // marker: reusing this ID must never issue another billable submission.
         if (galleryClaim && response.status >= 400 && response.status < 500) {
           await registry.from('generations').update({ status: 'failed', metadata: { ...galleryClaim.metadata, error } })
-            .eq('id', galleryClaim.id).eq('user_id', user.id);
+            .eq('id', galleryClaim.id).eq('user_id', user.id)
+            .eq('metadata->>h3ClaimToken', String(galleryClaim.metadata.h3ClaimToken));
         }
         return res.status(response.status).json({ error });
       }
