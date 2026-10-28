@@ -3,6 +3,14 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { validateWorkspaceConfig } from './lib/config/runtimeConfig';
 
+window.addEventListener('vite:preloadError', event => {
+  event.preventDefault();
+  const key = 'banana:preload-reload';
+  if (sessionStorage.getItem(key)) return;
+  sessionStorage.setItem(key, '1');
+  window.location.reload();
+});
+
 const rootElement = document.getElementById('root');
 if (!rootElement) {
   throw new Error("Could not find root element to mount to");

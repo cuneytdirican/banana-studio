@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { applyCors, createUserScopedClient, requireUser } from './_lib/auth.js';
-import { enforceDailyGenerationQuota } from './_lib/generationQuota.js';
+import { enforceDailyGenerationQuota, recordAcceptedUsage } from './_lib/generationQuota.js';
 import { prepareTaskRegistry, registerProviderTask, requireProviderTask } from './_lib/providerTasks.js';
 
 const FAL_QUEUE_BASE = 'https://queue.fal.run';
@@ -98,8 +98,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       if (!data?.request_id) {
         return res.status(502).json({ error: 'fal.ai response missing request_id' });
       }
-      await registerProviderTask(registry, 'fal', data.request_id, user.id);
-      return res.status(200).json({ requestId: data.request_id });
+    await registerProviderTask(registry, 'fal', data.request_id, user.id);
+    await recordAcceptedUsage(registry, { userId: user.id, action: 'video_scale', model: SCALE_ENDPOINT, prompt: '' });
+    return res.status(200).json({ requestId: data.request_id });
     }
 
     const requestId = req.query.requestId as string;

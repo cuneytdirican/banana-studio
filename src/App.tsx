@@ -34,6 +34,7 @@ import { mergeLoadedGalleryHistory } from './lib/gallery/galleryHistoryMerge';
 import { mergeReconciledGalleryCosts } from './lib/gallery/galleryBillingRefresh';
 import { createPromptPreparation } from './lib/prompts/promptPreparation';
 import { resolveTextModelPreferences } from './lib/prompts/textModels';
+import { LazyBoundary } from './components/LazyBoundary';
 
 const resolveImageModel = (value: unknown): GenerationConfig['imageModel'] => getActiveImageModel(value);
 
@@ -1676,14 +1677,16 @@ const AuthorizedWorkspace: React.FC<{
       <WorkspaceBar profile={userProfile} onOpenAdmin={() => setIsAdminPanelOpen(true)} onSignOut={handleSignOut} />
       {/* Admin Panel */}
       {!isLocalWorkspace() && userProfile?.role === 'admin' && (
-        <React.Suspense fallback={null}>
-          <AdminPanel
-            isOpen={isAdminPanelOpen}
-            onClose={() => setIsAdminPanelOpen(false)}
-            onViewUserGallery={handleViewUserGallery}
-            onBillingReconciled={refreshReconciledGalleryBilling}
-          />
-        </React.Suspense>
+        <LazyBoundary label="Workspace admin">
+          <React.Suspense fallback={null}>
+            <AdminPanel
+              isOpen={isAdminPanelOpen}
+              onClose={() => setIsAdminPanelOpen(false)}
+              onViewUserGallery={handleViewUserGallery}
+              onBillingReconciled={refreshReconciledGalleryBilling}
+            />
+          </React.Suspense>
+        </LazyBoundary>
       )}
 
       <Gallery

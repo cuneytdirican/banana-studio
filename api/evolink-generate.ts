@@ -1,7 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { describeEvoLinkFailure } from './_lib/evolink-errors.js';
 import { applyCors, createUserScopedClient, requireUser } from './_lib/auth.js';
-import { enforceDailyGenerationQuota } from './_lib/generationQuota.js';
+import { enforceDailyGenerationQuota, recordAcceptedUsage } from './_lib/generationQuota.js';
 import { prepareTaskRegistry, registerProviderTask } from './_lib/providerTasks.js';
 
 const EVOLINK_BASE = 'https://api.evolink.ai';
@@ -218,6 +218,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     await registerProviderTask(registry, 'evolink', data.id, user.id);
+    await recordAcceptedUsage(registry, { userId: user.id, action: 'video_generate', model, prompt: body.prompt });
 
     return res.status(200).json({
       taskId: data.id,

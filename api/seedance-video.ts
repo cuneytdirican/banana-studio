@@ -7,7 +7,7 @@ import { isReferenceUrl } from './_lib/providerMedia.js';
 import { prepareTaskRegistry, registerProviderTask, requireProviderTask } from './_lib/providerTasks.js';
 import evolinkGenerate from './evolink-generate.js';
 import { signedMediaUrl } from './_lib/imageStorage.js';
-import { enforceDailyGenerationQuota } from './_lib/generationQuota.js';
+import { enforceDailyGenerationQuota, recordAcceptedUsage } from './_lib/generationQuota.js';
 
 export const config = { maxDuration: 300 };
 const HANDLE = /^bs_(fal|openrouter)_(seedance-2\.[05])_([a-zA-Z0-9_-]{1,128})$/;
@@ -42,8 +42,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const id = provider === 'fal' ? data?.request_id : data?.id;
       if (typeof id !== 'string' || !/^[a-zA-Z0-9_-]{1,128}$/.test(id)) throw new Error('The provider did not confirm a task ID.');
       const taskId = `bs_${provider}_${body.videoModel}_${id}`;
-      await registerProviderTask(registry, provider, taskId, user.id);
-      return res.status(200).json({ taskId, provider, endpoint: provider === 'fal' ? fal.endpoint : `openrouter/bytedance/${body.videoModel}` });
+    await registerProviderTask(registry, provider, taskId, user.id);
+    await recordAcceptedUsage(registry, { userId: user.id, action: 'video_generate', model: body.videoModel, prompt: body.prompt });
+    return res.status(200).json({ taskId, provider, endpoint: provider === 'fal' ? fal.endpoint : `openrouter/bytedance/${body.videoModel}` });
     }
     const taskId = req.query.taskId as string;
     const match = typeof taskId === 'string' && taskId.match(HANDLE);
