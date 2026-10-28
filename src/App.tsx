@@ -1813,8 +1813,8 @@ const AuthorizedWorkspace: React.FC<{
           void recordAuditEvent({
             action: 'media.edited',
             targetType: 'media',
-            targetId: editConfig.referenceImages?.[0]?.id,
-            metadata: { model: editConfig.imageModel },
+            targetId: getGalleryEditSourceId(editConfig.referenceImages) ?? editConfig.referenceImages?.[0]?.id,
+            metadata: { model: editConfig.imageModel, resultIds: result },
           }).catch(() => {});
           return result;
         }}

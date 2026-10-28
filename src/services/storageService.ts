@@ -648,17 +648,19 @@ const putImageInIndexedDb = async (media: GeneratedMedia, expectedUserId?: strin
     await new Promise<void>((resolve, reject) => {
       const transaction = db.transaction(STORE_NAME, 'readwrite');
       const store = transaction.objectStore(STORE_NAME);
-      const request = store.put({
+      transaction.oncomplete = () => resolve();
+      transaction.onerror = () => reject(transaction.error ?? new Error('IndexedDB transaction failed.'));
+      transaction.onabort = () => reject(transaction.error ?? new Error('IndexedDB transaction aborted.'));
+      store.put({
         ...media, url: persistMediaReference(media.url), thumbnailUrl: persistMediaReference(media.thumbnailUrl),
         referenceImages: media.referenceImages?.map(ref => withoutLegacyMask({ ...ref, data: persistMediaReference(ref.data) })),
         referenceVideos: media.referenceVideos?.map(ref => ({ ...ref, url: persistMediaReference(ref.url) })),
         referenceAudios: media.referenceAudios?.map(ref => ({ ...ref, url: persistMediaReference(ref.url) })),
       });
-      request.onsuccess = () => resolve();
-      request.onerror = () => reject(request.error);
     });
   } catch (error) {
     console.error("Error saving media to IndexedDB:", error);
+    throw error;
   }
 };
 
@@ -1034,7 +1036,11 @@ export const updateMediaTags = async (id: string, tags: string[], expectedUserId
     request.onerror = () => reject(request.error);
   });
   if (!media) throw new Error('This item is unavailable.');
-  await putImageInIndexedDb({ ...media, tags: normalized });
+  try {
+    await putImageInIndexedDb({ ...media, tags: normalized });
+  } catch {
+    throw new Error('Tags could not be saved.');
+  }
   return normalized;
 };
 

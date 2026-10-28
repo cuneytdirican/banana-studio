@@ -28,13 +28,24 @@ export const PromptHistoryMenu = ({
 
   useEffect(() => {
     if (!open) return;
+    menuRef.current?.querySelector<HTMLButtonElement>('button')?.focus();
     const close = (event: MouseEvent) => {
       if (menuRef.current?.contains(event.target as Node)) return;
       if (buttonRef.current?.contains(event.target as Node)) return;
       setOpen(false);
     };
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setOpen(false);
+        buttonRef.current?.focus();
+      }
+    };
     document.addEventListener('mousedown', close);
-    return () => document.removeEventListener('mousedown', close);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', close);
+      document.removeEventListener('keydown', onKey);
+    };
   }, [open]);
 
   const toggle = () => {
@@ -53,6 +64,8 @@ export const PromptHistoryMenu = ({
         onClick={toggle}
         title="Prompt history"
         aria-expanded={open}
+        aria-haspopup="menu"
+        aria-controls="prompt-history-menu"
         className={`flex h-[42px] w-[42px] shrink-0 items-center justify-center rounded-xl border transition-all ${
           open ? 'border-violet-400/35 bg-violet-500/15 text-violet-200' : 'border-white/[0.07] bg-[#171e28] text-gray-400 hover:border-white/15 hover:bg-[#1b2330] hover:text-white'
         }`}
@@ -61,7 +74,9 @@ export const PromptHistoryMenu = ({
       </button>
       {open && createPortal(
         <div
+          id="prompt-history-menu"
           ref={menuRef}
+          role="menu"
           style={{ position: 'fixed', left: position.left, bottom: position.bottom, zIndex: 9999 }}
           className="w-[320px] overflow-hidden rounded-2xl border border-gray-700/50 bg-[#161b22] shadow-2xl"
         >
