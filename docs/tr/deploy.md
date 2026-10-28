@@ -37,7 +37,7 @@ Bu uygulamaya ayrılmış boş bir proje kullan. Başlangıç SQL'i sabit adlarl
 1. [Başlangıç SQL dosyasını](../../supabase/migrations/20261019123903_banana_studio_baseline.sql) aç. GitHub'daki **Raw** veya kopyalama düğmesiyle **dosyanın tamamını** kopyala.
 2. Yeni Supabase projen içinde **SQL Editor → New query** aç.
 3. SQL'i yapıştır ve **Run** seç. Başlangıç dosyasını yeni projede bir kez çalıştır.
-4. `BANANA_DAILY_GENERATION_LIMIT` pozitifse, baseline'dan sonra SQL Editor'de `20261028120000_generation_quota.sql` migration'ının tamamını çalıştır. RPC yoksa kota istekleri kapalı davranır.
+4. `BANANA_DAILY_GENERATION_LIMIT` pozitifse, baseline'dan sonra SQL Editor'de `20261028120000_generation_quota.sql` migration'ının tamamını çalıştır. RPC yoksa kota istekleri kapalı davranır. Yönetici denetim kaydı için `20261028130000_audit_events.sql` dosyasını da çalıştır.
 5. **Table Editor** bölümünde `profiles`, `generations`, `folders`, `authorized_emails` gibi tabloları kontrol et.
 6. **Storage** bölümünde `media` alanının oluştuğunu ve **private / özel** olduğunu kontrol et. Dosyanın oluşturduğu erişim kurallarını koru.
 
