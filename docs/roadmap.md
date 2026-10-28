@@ -16,14 +16,15 @@ needs.
 Acceptance: all checks pass; no production dependency advisories; the gallery
 and composer keep working in cloud and local modes.
 
-## Phase 2 — Prompt productivity
+## Phase 2 — Prompt productivity (delivered in #57)
 
-- Prompt recipes: save a named config including seed, model and references.
+- Prompt recipes: saved templates now include the seed, model and references.
 - Template variables: `{{city}}`, `{{person}}` placeholders with a required-value
-  dialog before applying a template. (Delivered in #57.)
-- Prompt history with one-click restore.
-- Model playground: run one prompt across two models and compare cost, latency
-  and output side by side.
+  dialog before applying a template.
+- Prompt history with one-click restore, per-user storage and 30-entry cap.
+- Model playground: compare two models for the same prompt, ratio and
+  resolution using estimated cost and observed latency, then apply one without
+  spending credits.
 
 Acceptance: a recipe survives reload and desktop/web export; the playground
 shows measured costs from `usage_logs`.
