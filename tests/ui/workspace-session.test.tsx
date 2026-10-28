@@ -32,4 +32,24 @@ describe('useWorkspaceSession', () => {
     );
     expect(operation).not.toHaveBeenCalled();
   });
+
+  it('rejects when the user changes while the operation runs', async () => {
+    getSessionMock
+      .mockResolvedValueOnce({ user: { id: 'user-1' } } as never)
+      .mockResolvedValueOnce({ user: { id: 'user-2' } } as never);
+    const operation = vi.fn().mockResolvedValue('saved');
+    const { result } = renderHook(() => useWorkspaceSession('user-1'));
+
+    await expect(result.current.withWorkspaceSession(operation)()).rejects.toThrow(
+      'Session changed. Sign in again to continue.',
+    );
+    expect(operation).toHaveBeenCalledTimes(1);
+  });
+
+  it('rejects after the workspace unmounts', async () => {
+    getSessionMock.mockResolvedValue({ user: { id: 'user-1' } } as never);
+    const { result, unmount } = renderHook(() => useWorkspaceSession('user-1'));
+    unmount();
+    await expect(result.current.assertWorkspaceSession()).rejects.toThrow('Session changed');
+  });
 });

@@ -68,18 +68,19 @@ export const renderBrandedPreset = async ({
     const margin = Math.round(Math.min(preset.width, preset.height) * (brandKit.safeMargin / 100));
     const contentWidth = preset.width - margin * 2;
     const accentHeight = Math.max(6, Math.round(preset.height * 0.008));
-    ctx.fillStyle = brandKit.accentColor;
-    ctx.fillRect(margin, preset.height - margin - accentHeight, Math.min(contentWidth, Math.round(preset.width * 0.18)), accentHeight);
-
     const titleSize = Math.round(Math.min(preset.width, preset.height) * 0.045);
+    const brandSize = Math.max(16, Math.round(titleSize * 0.55));
+    const ruleY = preset.height - margin - brandSize - Math.round(brandSize * 0.4) - accentHeight;
+    ctx.fillStyle = brandKit.accentColor;
+    ctx.fillRect(margin, ruleY, Math.min(contentWidth, Math.round(preset.width * 0.18)), accentHeight);
+
     ctx.font = `700 ${titleSize}px ${brandKit.fontFamily}, sans-serif`;
     ctx.fillStyle = '#ffffff';
     ctx.textBaseline = 'alphabetic';
     const cleanTitle = (title || '').replace(/\s+/g, ' ').trim();
     const titleText = cleanTitle ? fitText(ctx, cleanTitle, contentWidth) : '';
-    if (titleText) ctx.fillText(titleText, margin, preset.height - margin - accentHeight - Math.round(titleSize * 0.6));
+    if (titleText) ctx.fillText(titleText, margin, ruleY - Math.round(titleSize * 0.6));
 
-    const brandSize = Math.max(16, Math.round(titleSize * 0.55));
     ctx.font = `600 ${brandSize}px ${brandKit.fontFamily}, sans-serif`;
     ctx.fillStyle = brandKit.accentColor;
     ctx.fillText(brandKit.name.toUpperCase(), margin, preset.height - margin);
