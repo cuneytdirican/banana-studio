@@ -31,8 +31,10 @@ const HEX = /^#[0-9a-f]{6}$/i;
 export const normalizeBrandKit = (input: unknown): BrandKit => {
   const source = input && typeof input === 'object' ? input as Record<string, unknown> : {};
   const name = typeof source.name === 'string' ? source.name.trim().slice(0, 60) : '';
-  const logo = typeof source.logoDataUrl === 'string' && source.logoDataUrl.startsWith('data:image/')
-    ? source.logoDataUrl.slice(0, 700_000)
+  const logo = typeof source.logoDataUrl === 'string'
+    && source.logoDataUrl.startsWith('data:image/')
+    && source.logoDataUrl.length <= 700_000
+    ? source.logoDataUrl
     : undefined;
   return {
     name: name || DEFAULT_BRAND_KIT.name,

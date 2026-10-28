@@ -309,14 +309,14 @@ export const Gallery: React.FC<GalleryProps> = ({
       const commandK = (event.metaKey || event.ctrlKey) && !event.shiftKey && event.key.toLowerCase() === 'k';
       const slash = event.key === '/' && !event.metaKey && !event.ctrlKey
         && !(event.target as HTMLElement)?.closest('input, textarea, select, [contenteditable]:not([contenteditable="false"])');
-      if ((!commandK && !slash) || isSearchOpen || comparisonIds || isYouTubePreviewOpen || isCreatingFolder || isHelpCenterOpen || previewRefImage) return;
+      if ((!commandK && !slash) || isSearchOpen || comparisonIds || isYouTubePreviewOpen || isCreatingFolder || isHelpCenterOpen || isIntelligenceOpen || previewRefImage) return;
       if ((event.target as HTMLElement)?.closest('[role="dialog"]')) return;
       event.preventDefault();
       openSearch();
     };
     window.addEventListener('keydown', keydown);
     return () => window.removeEventListener('keydown', keydown);
-  }, [openSearch, isSearchOpen, comparisonIds, isYouTubePreviewOpen, isCreatingFolder, isHelpCenterOpen, previewRefImage]);
+  }, [openSearch, isSearchOpen, comparisonIds, isYouTubePreviewOpen, isCreatingFolder, isHelpCenterOpen, isIntelligenceOpen, previewRefImage]);
 
   // Close header menus when clicking outside
   useEffect(() => {
@@ -695,7 +695,7 @@ export const Gallery: React.FC<GalleryProps> = ({
   };
 
   useEffect(() => {
-    if (!selectedMedia || selectedMedia.isLoading || isSelectionMode || comparisonIds || isSearchOpen || isYouTubePreviewOpen || isHelpCenterOpen || previewRefImage || (!isReadOnly && (isCreatingFolder || sharingFolder))) return;
+    if (!selectedMedia || selectedMedia.isLoading || isSelectionMode || comparisonIds || isSearchOpen || isYouTubePreviewOpen || isHelpCenterOpen || isIntelligenceOpen || previewRefImage || (!isReadOnly && (isCreatingFolder || sharingFolder))) return;
 
     const handleKeyDown = (e: KeyboardEvent) => {
       const target = e.target as HTMLElement | null;
@@ -1223,7 +1223,7 @@ export const Gallery: React.FC<GalleryProps> = ({
   ) : null;
 
   const searchDialog = isSearchOpen && (
-    <LazyBoundary label="Gallery search">
+    <LazyBoundary label="Gallery search" onDismiss={closeSearch}>
       <React.Suspense fallback={null}>
         <GallerySearchDialog images={images} folders={folders} ownerId={galleryOwner?.user_id} isLoading={isGalleryIndexLoading || isFoldersLoading} loadError={galleryLoadError || folderLoadError} onClose={closeSearch} onSelect={selectSearchResult} />
       </React.Suspense>
@@ -1328,29 +1328,39 @@ export const Gallery: React.FC<GalleryProps> = ({
       onDragEnd={clearDragState}
     >
 
-      <GalleryIntelligenceDialog
-        open={isIntelligenceOpen}
-        images={images}
-        brandKit={brandKit}
-        onClose={() => setIsIntelligenceOpen(false)}
-        onSelect={id => {
-          const media = images.find(item => item.id === id);
-          setIsIntelligenceOpen(false);
-          setShowFavoritesOnly(false);
-          setMediaFilter('all');
-          setIsSelectionMode(false);
-          onFolderSelect(media?.folderId || null);
-          onImageSelect(media && (!media.status || media.status === 'completed') && media.url ? id : null);
-          setSearchRevealId(id);
-        }}
-      />
+      {isIntelligenceOpen && (
+        <GalleryIntelligenceDialog
+          open
+          images={images}
+          brandKit={brandKit}
+          onClose={() => setIsIntelligenceOpen(false)}
+          onSelect={id => {
+            const media = images.find(item => item.id === id);
+            setIsIntelligenceOpen(false);
+            setShowFavoritesOnly(false);
+            setMediaFilter('all');
+            setIsSelectionMode(false);
+            onFolderSelect(media?.folderId || null);
+            onImageSelect(media && (!media.status || media.status === 'completed') && media.url ? id : null);
+            setSearchRevealId(id);
+          }}
+        />
+      )}
 
-      <LazyBoundary label="Help and sharing">
-        <React.Suspense fallback={null}>
-          {isHelpCenterOpen && <HelpCenter open onClose={() => setIsHelpCenterOpen(false)} />}
-          {sharingFolder && !isReadOnly && <FolderShareDialog key={sharingFolder.id} folder={sharingFolder} onClose={() => setSharingFolder(null)} />}
-        </React.Suspense>
-      </LazyBoundary>
+      {isHelpCenterOpen && (
+        <LazyBoundary label="Help Center" onDismiss={() => setIsHelpCenterOpen(false)}>
+          <React.Suspense fallback={null}>
+            <HelpCenter open onClose={() => setIsHelpCenterOpen(false)} />
+          </React.Suspense>
+        </LazyBoundary>
+      )}
+      {sharingFolder && !isReadOnly && (
+        <LazyBoundary label="Folder sharing" onDismiss={() => setSharingFolder(null)}>
+          <React.Suspense fallback={null}>
+            <FolderShareDialog key={sharingFolder.id} folder={sharingFolder} onClose={() => setSharingFolder(null)} />
+          </React.Suspense>
+        </LazyBoundary>
+      )}
 
       {isCreatingFolder && !isReadOnly && (
         <div
@@ -2419,7 +2429,7 @@ export const Gallery: React.FC<GalleryProps> = ({
       )}
 
       {comparisonIds && (
-        <LazyBoundary label="Image comparison">
+        <LazyBoundary label="Image comparison" onDismiss={closeComparison}>
           <React.Suspense fallback={null}>
             <ImageCompareDialog images={comparisonImages} onClose={closeComparison}
               onToggleFavorite={onToggleFavorite} isReadOnly={isReadOnly} loadDetails={loadComparisonDetails} refreshSource={refreshComparisonSource} />
@@ -2428,7 +2438,7 @@ export const Gallery: React.FC<GalleryProps> = ({
       )}
 
       {isYouTubePreviewOpen && selectedMedia && isComparableImage(selectedMedia) && (
-        <LazyBoundary label="YouTube preview">
+        <LazyBoundary label="YouTube preview" onDismiss={() => setIsYouTubePreviewOpen(false)}>
           <React.Suspense fallback={null}>
             <YouTubePreviewDialog
             media={selectedMedia}
@@ -2538,7 +2548,7 @@ export const Gallery: React.FC<GalleryProps> = ({
               </div>}
             </> : null}
             {canEditSelectedMedia && (isEditingSelectedMedia || isDetailsVisible) && <div className={`w-full flex shrink-0 flex-col items-center ${isEditingSelectedMedia ? 'md:my-auto' : ''}`} onClick={event => event.stopPropagation()}>
-              <LazyBoundary label="Image editor">
+              <LazyBoundary label="Image editor" onDismiss={() => setEditingMediaId(null)}>
                 <React.Suspense fallback={null}>
                   <GalleryImageEditor key={selectedMedia.id} image={selectedMedia} images={images} isEditing={isEditingSelectedMedia} onStart={() => setEditingMediaId(selectedMedia.id)} onGenerate={onEditGenerate!} onClose={() => setEditingMediaId(null)} onEditResult={result => { setSelectedMediaId(result.id); setEditingMediaId(result.id); }} initialTextModel={imageEditTextModel} refreshSource={refreshComparisonSource} />
                 </React.Suspense>
@@ -2579,6 +2589,7 @@ export const Gallery: React.FC<GalleryProps> = ({
 
               {onUpdateTags && (
                 <TagsEditor
+                  key={selectedMedia.id}
                   media={selectedMedia}
                   readOnly={isReadOnly}
                   onUpdate={tags => onUpdateTags(selectedMedia.id, tags)}

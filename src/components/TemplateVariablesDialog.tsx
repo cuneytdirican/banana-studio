@@ -27,6 +27,7 @@ export const TemplateVariablesDialog = ({
     if (dialog && !dialog.open) {
       if (typeof dialog.showModal === 'function') dialog.showModal();
       else dialog.setAttribute('open', '');
+      dialog.querySelector<HTMLInputElement>('input')?.focus();
     }
     return () => {
       if (dialog?.open) {

@@ -62,13 +62,15 @@ describe('gallery intelligence', () => {
         ? Buffer.from([1, 2, 3])
         : Buffer.from([4, 5, 6])) as unknown as ArrayBuffer,
     })) as unknown as typeof fetch;
-    const groups = await findVisualDuplicateGroups([
+    const result = await findVisualDuplicateGroups([
       media({ id: 'a', url: 'https://example.test/same-1.png' }),
       media({ id: 'b', url: 'https://example.test/same-2.png' }),
       media({ id: 'c', url: 'https://example.test/other.png' }),
     ], 10, fetchImpl);
-    expect(groups).toHaveLength(1);
-    expect(groups[0].map(item => item.id)).toEqual(['a', 'b']);
+    expect(result.groups).toHaveLength(1);
+    expect(result.groups[0].map(item => item.id)).toEqual(['a', 'b']);
+    expect(result.scanned).toBe(3);
+    expect(result.skipped).toBe(0);
 
     const html = buildContactSheetHtml([media({ id: 'x', prompt: '<script>alert(1)</script>' })]);
     expect(html).toContain('&lt;script&gt;alert(1)&lt;/script&gt;');

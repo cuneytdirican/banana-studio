@@ -29,4 +29,11 @@ describe('brand kit', () => {
     expect(loadBrandKit('user-1').name).toBe('Studio One');
     expect(loadBrandKit('user-2').name).toBe(DEFAULT_BRAND_KIT.name);
   });
+
+  it('accepts image data URLs and rejects oversized or non-image logos', () => {
+    const oversized = `data:image/png;base64,${'A'.repeat(700_000)}`;
+    expect(normalizeBrandKit({ logoDataUrl: oversized }).logoDataUrl).toBeUndefined();
+    expect(normalizeBrandKit({ logoDataUrl: 'https://example.test/logo.png' }).logoDataUrl).toBeUndefined();
+    expect(normalizeBrandKit({ logoDataUrl: 'data:image/png;base64,AAAA' }).logoDataUrl).toBe('data:image/png;base64,AAAA');
+  });
 });

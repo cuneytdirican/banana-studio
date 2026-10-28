@@ -37,8 +37,9 @@ Use an empty project reserved for this application. The baseline creates tables 
 1. Open [the baseline SQL file](../../supabase/migrations/20261019123903_banana_studio_baseline.sql). On GitHub, use **Raw** or the copy button to copy the **entire file**.
 2. In your new Supabase project, open **SQL Editor → New query**.
 3. Paste the SQL and select **Run**. Run the baseline once on the new project.
-4. In **Table Editor**, check for tables such as `profiles`, `generations`, `folders` and `authorized_emails`.
-5. In **Storage**, check that the `media` bucket exists and is **private**. Keep its policies and the table access rules from the migration.
+4. If `BANANA_DAILY_GENERATION_LIMIT` is positive, run the full `20261028120000_generation_quota.sql` migration in SQL Editor after the baseline. The quota fails closed if its RPC is missing.
+5. In **Table Editor**, check for tables such as `profiles`, `generations`, `folders` and `authorized_emails`.
+6. In **Storage**, check that the `media` bucket exists and is **private**. Keep its policies and the table access rules from the migration.
 
 **Checkpoint:** SQL Editor reports success, the tables exist, and `media` is private. A CLI-based migration path is also possible for developers; do not apply both methods to the same schema without reconciling migration history.
 

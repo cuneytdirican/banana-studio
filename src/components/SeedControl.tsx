@@ -1,4 +1,4 @@
-import type { Dispatch, SetStateAction } from 'react';
+import { useState, type Dispatch, type SetStateAction } from 'react';
 import { Lock, Shuffle } from 'lucide-react';
 import type { GenerationConfig } from '../types';
 
@@ -11,6 +11,7 @@ export const SeedControl = ({
   config: GenerationConfig;
   onChange: Dispatch<SetStateAction<GenerationConfig>>;
 }) => {
+  const [draft, setDraft] = useState<string | null>(null);
   const locked = config.seed != null;
   const toggle = () => onChange(current => ({
     ...current,
@@ -34,12 +35,14 @@ export const SeedControl = ({
         min={0}
         max={MAX_SEED}
         step={1}
-        value={config.seed ?? ''}
+        value={draft ?? config.seed ?? ''}
         disabled={!locked}
         placeholder="random"
         aria-label="Seed value"
+        onBlur={() => setDraft(null)}
         onChange={event => {
           const raw = event.target.value;
+          setDraft(raw);
           if (raw.trim() === '') return;
           const value = Number(raw);
           if (!Number.isFinite(value)) return;
