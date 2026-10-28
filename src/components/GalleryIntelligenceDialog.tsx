@@ -6,6 +6,7 @@ import {
   findVisualDuplicateGroups,
   runGalleryQa,
   type GalleryQaSeverity,
+  type VisualDuplicateResult,
 } from '../lib/gallery/intelligence';
 import type { GeneratedMedia } from '../types';
 
@@ -27,7 +28,7 @@ export const GalleryIntelligenceDialog = ({
   onSelect: (id: string) => void;
 }) => {
   const [tab, setTab] = useState<Tab>('duplicates');
-  const [visualGroups, setVisualGroups] = useState<GeneratedMedia[][] | null>(null);
+  const [visualGroups, setVisualGroups] = useState<VisualDuplicateResult | null>(null);
   const [scanning, setScanning] = useState(false);
   const [scanError, setScanError] = useState<string | null>(null);
   const recipeGroups = useMemo(() => findRecipeDuplicateGroups(images), [images]);
@@ -161,8 +162,8 @@ export const GalleryIntelligenceDialog = ({
                 {scanError && <p className="mb-2 text-xs text-red-300">{scanError}</p>}
                 {visualGroups == null
                   ? <p className="rounded-xl border border-dashed border-gray-700 p-6 text-center text-xs text-gray-500">Run a scan to compare output bytes.</p>
-                  : visualGroups.length
-                    ? visualGroups.map(group => (
+                  : visualGroups.groups.length
+                    ? visualGroups.groups.map(group => (
                       <div key={group[0].id} className="mb-3 flex gap-2 rounded-xl border border-gray-700/70 bg-gray-900/40 p-3">
                         {group.map(media => (
                           <button key={media.id} type="button" onClick={() => onSelect(media.id)} className="w-20 shrink-0">
@@ -172,6 +173,11 @@ export const GalleryIntelligenceDialog = ({
                       </div>
                     ))
                     : <p className="rounded-xl border border-dashed border-gray-700 p-6 text-center text-xs text-gray-500">No identical files found.</p>}
+                {visualGroups && visualGroups.skipped > 0 && (
+                  <p role="status" className="mt-1 text-[11px] text-amber-200">
+                    {visualGroups.skipped} file{visualGroups.skipped === 1 ? '' : 's'} could not be scanned; results may be incomplete.
+                  </p>
+                )}
               </section>
             </div>
           )}

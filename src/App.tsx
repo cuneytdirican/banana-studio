@@ -30,6 +30,7 @@ import { H3_MAX_CAPABILITIES } from './lib/video/h3Max';
 import { getH3MaxConfigError, getH3MaxMode } from './lib/video/h3MaxConfig';
 import { parseErrorMessage } from './services/generationErrors';
 import { mergePersonReferenceInputs } from './lib/references/personReferences';
+import { resolveStableImageReferences } from './lib/references/referenceTokens';
 import { createRecreateConfig, mergeRecreateHydration } from './lib/gallery/recreateDraft';
 import { validateImageGenerationReferences } from './lib/images/imagePrompting';
 import { prepareProtectedImageSource, finishProtectedImageEdit } from './services/imageEditService';
@@ -1652,6 +1653,13 @@ const AuthorizedWorkspace: React.FC<{
   };
 
   const handleSelectPromptHistory = (entry: PromptHistoryEntry) => {
+    if (config.mode === 'image' && entry.prompt.includes('@REFERENCE[')) {
+      try {
+        resolveStableImageReferences(entry.prompt, config.referenceImages);
+      } catch {
+        toast.warning('Reference missing', 'The restored prompt mentions a reference that is no longer attached. Re-add it or remove the tag before generating.');
+      }
+    }
     setConfig(prev => ({
       ...prev,
       prompt: entry.prompt,
@@ -1671,7 +1679,22 @@ const AuthorizedWorkspace: React.FC<{
   const handleClearPromptHistory = () => setPromptHistory(clearPromptHistory(userId));
 
   const handleApplyPlayground = (patch: Partial<GenerationConfig>) => {
-    setConfig(prev => ({ ...prev, ...patch }));
+    setConfig(prev => ({
+      ...prev,
+      ...patch,
+      ...(patch.prompt !== undefined && patch.prompt !== prev.prompt ? {
+        originalPrompt: undefined,
+        promptPreparation: undefined,
+        enhancedForMode: undefined,
+        enhancedForImageModel: undefined,
+        enhancedForImageContextKey: undefined,
+        enhancedForVideoModel: undefined,
+        enhancedForVideoOperation: undefined,
+        enhancedForVideoReferenceKey: undefined,
+        enhancedForH3MaxMode: undefined,
+        enhancedForH3MaxOptionsKey: undefined,
+      } : {}),
+    }));
     setIsPlaygroundOpen(false);
     toast.success('Playground applied', 'Model and settings loaded into the composer.');
   };
@@ -1716,8 +1739,8 @@ const AuthorizedWorkspace: React.FC<{
 
       <WorkspaceBar profile={userProfile} onOpenAdmin={() => setIsAdminPanelOpen(true)} onOpenPlayground={() => setIsPlaygroundOpen(true)} onSignOut={handleSignOut} />
       {/* Admin Panel */}
-      {!isLocalWorkspace() && userProfile?.role === 'admin' && (
-        <LazyBoundary label="Workspace admin">
+      {!isLocalWorkspace() && userProfile?.role === 'admin' && isAdminPanelOpen && (
+        <LazyBoundary label="Workspace admin" onDismiss={() => setIsAdminPanelOpen(false)}>
           <React.Suspense fallback={null}>
             <AdminPanel
               isOpen={isAdminPanelOpen}

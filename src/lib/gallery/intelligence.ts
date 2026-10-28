@@ -25,6 +25,8 @@ export const buildMediaFingerprint = (media: GeneratedMedia): string => JSON.str
   media.imageModel || media.videoModel || '',
   media.aspectRatio,
   media.resolution,
+  media.imageEditSourceId ?? null,
+  media.imageGenerationReferenceIds ?? [],
   media.seed ?? null,
   media.openaiImageOptions?.quality ?? null,
   media.videoQuality ?? null,
@@ -32,7 +34,6 @@ export const buildMediaFingerprint = (media: GeneratedMedia): string => JSON.str
 ]);
 
 export const findRecipeDuplicateGroups = (images: GeneratedMedia[]): GeneratedMedia[][] => {
-  console.log('SCAN', images.length);
   const groups = new Map<string, GeneratedMedia[]>();
   for (const media of images) {
     if (media.isLoading || media.status === 'failed') continue;
@@ -76,11 +77,17 @@ const hashBytes = async (buffer: ArrayBuffer): Promise<string> => {
 };
 
 /** Fetches and hashes outputs to find identical pixels. Bounded so a huge gallery cannot freeze the tab. */
+export interface VisualDuplicateResult {
+  groups: GeneratedMedia[][];
+  scanned: number;
+  skipped: number;
+}
+
 export const findVisualDuplicateGroups = async (
   images: GeneratedMedia[],
   limit = 120,
   fetchImpl: typeof fetch = fetch,
-): Promise<GeneratedMedia[][]> => {
+): Promise<VisualDuplicateResult> => {
   if (!globalThis.crypto?.subtle) {
     throw new Error('Pixel scanning requires a secure context (HTTPS or localhost).');
   }
@@ -88,17 +95,23 @@ export const findVisualDuplicateGroups = async (
     item.mediaType === 'image' && !item.isLoading && item.status !== 'failed' && item.url,
   );
   const groups = new Map<string, GeneratedMedia[]>();
+  let scanned = 0;
+  let skipped = 0;
   for (const media of candidateImages.slice(0, limit)) {
     try {
       const response = await fetchImpl(media.url);
-      if (!response.ok) continue;
+      if (!response.ok) {
+        skipped += 1;
+        continue;
+      }
       const hash = await hashBytes(await response.arrayBuffer());
+      scanned += 1;
       groups.set(hash, [...(groups.get(hash) || []), media]);
     } catch {
-      // A single unavailable thumbnail must not abort the scan.
+      skipped += 1;
     }
   }
-  return [...groups.values()].filter(group => group.length > 1);
+  return { groups: [...groups.values()].filter(group => group.length > 1), scanned, skipped };
 };
 
 const escapeHtml = (value: string): string => value
@@ -106,7 +119,8 @@ const escapeHtml = (value: string): string => value
   .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 
 export const buildContactSheetHtml = (images: GeneratedMedia[], title = 'Banana Studio contact sheet'): string => {
-  const cards = images.filter(media => !media.isLoading && media.url).map(media => `
+  const printable = images.filter(media => !media.isLoading && media.url);
+  const cards = printable.map(media => `
     <figure>
       ${media.mediaType === 'video'
         ? `<div class="video">VIDEO</div>`
@@ -134,7 +148,7 @@ export const buildContactSheetHtml = (images: GeneratedMedia[], title = 'Banana 
     figcaption em { color: #666; font-style: normal; margin-top: 2px; }
   </style></head><body>
   <h1>${escapeHtml(title)}</h1>
-  <p class="meta">${images.length} item${images.length === 1 ? '' : 's'} · printed ${new Date().toLocaleString()}</p>
+  <p class="meta">${printable.length} item${printable.length === 1 ? '' : 's'} · printed ${new Date().toLocaleString()}</p>
   <main>${cards}</main>
   </body></html>`;
 };

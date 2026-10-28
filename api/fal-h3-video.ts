@@ -181,11 +181,23 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           .update({ status: 'processing', metadata: claimedMetadata }).eq('id', body.generationId).eq('user_id', user.id).eq('status', 'pending').select('id').maybeSingle();
         if (claimError) return res.status(503).json({ error: 'The saved video could not be claimed. No provider request was sent.' });
         if (!claimed) return res.status(409).json({ code: 'GENERATION_SUBMITTING', error: 'This saved video is already being submitted. Check the existing task instead of submitting again.' });
-        if (!await enforceDailyGenerationQuota(createUserScopedClient(req), user.id, res)) {
+        let quotaAllowed = false;
+        try {
+          quotaAllowed = await enforceDailyGenerationQuota(createUserScopedClient(req), user.id, res);
+        } catch (quotaError) {
+          console.error('H3 quota check failed', quotaError);
+          if (!res.writableEnded) res.status(503).json({ error: 'Usage quota could not be verified. Try again shortly.' });
+        }
+        if (!quotaAllowed) {
           // Release the claim so a rejected quota cannot strand the generation.
-          await registry.from('generations')
-            .update({ status: 'pending', metadata })
-            .eq('id', body.generationId).eq('user_id', user.id).eq('status', 'processing');
+          try {
+            const { error: releaseError } = await registry.from('generations')
+              .update({ status: 'pending', metadata })
+              .eq('id', body.generationId).eq('user_id', user.id).eq('status', 'processing');
+            if (releaseError) console.error('H3 claim release failed', releaseError);
+          } catch (releaseError) {
+            console.error('H3 claim release failed', releaseError);
+          }
           return;
         }
         quotaChecked = true;

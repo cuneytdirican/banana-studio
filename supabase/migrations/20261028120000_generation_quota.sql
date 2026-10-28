@@ -20,7 +20,7 @@ create or replace function public.reserve_generation_quota(p_limit integer)
 returns boolean
 language plpgsql
 security definer
-set search_path = public
+set search_path = public, pg_temp
 as $$
 declare
   v_user uuid := auth.uid();
@@ -43,4 +43,5 @@ end;
 $$;
 
 revoke all on function public.reserve_generation_quota(integer) from public;
+revoke all on function public.reserve_generation_quota(integer) from anon;
 grant execute on function public.reserve_generation_quota(integer) to authenticated;
