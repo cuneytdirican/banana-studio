@@ -21,4 +21,5 @@ $$;
 
 revoke all on function public.release_generation_quota() from public;
 revoke all on function public.release_generation_quota() from anon;
-grant execute on function public.release_generation_quota() to authenticated;
+revoke all on function public.release_generation_quota() from authenticated;
+grant execute on function public.release_generation_quota() to service_role;
