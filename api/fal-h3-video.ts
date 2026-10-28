@@ -132,7 +132,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   const user = await requireUser(req, res);
   if (!user) return;
-  if (req.method === 'POST' && !await enforceDailyGenerationQuota(createUserScopedClient(req), user.id, res)) return;
 
   const apiKey = process.env.FAL_KEY;
   if (!apiKey) return res.status(500).json({ error: 'FAL_KEY not configured on server' });
@@ -149,6 +148,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return res.status(400).json({ error: error?.message || 'Invalid MiniMax H3 Max request' });
       }
       const { endpoint, input, mode } = prepared;
+      let quotaChecked = false;
       const estimatedCostUsd = estimateH3MaxCost({
         h3MaxMode: mode, h3MaxOptions: body.options,
         videoQuality: String(input.resolution || body.resolution || '768P'),
@@ -173,6 +173,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           const savedQueueEndpoint = typeof metadata.falQueueEndpoint === 'string' && ALLOWED_QUEUE_ENDPOINTS.has(metadata.falQueueEndpoint) ? metadata.falQueueEndpoint : savedEndpoint;
           return res.status(200).json({ taskId: saved.task_id, endpoint: savedEndpoint, queueEndpoint: savedQueueEndpoint });
         }
+        if (!await enforceDailyGenerationQuota(createUserScopedClient(req), user.id, res)) return;
+        quotaChecked = true;
         if (saved.status !== 'pending' || metadata.h3SubmissionStartedAt) return res.status(409).json({
           code: 'GENERATION_SUBMITTING', error: 'This saved video was already submitted or its acceptance is uncertain. Do not submit again; check its saved task history and usage.',
         });
@@ -183,6 +185,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         if (!claimed) return res.status(409).json({ code: 'GENERATION_SUBMITTING', error: 'This saved video is already being submitted. Check the existing task instead of submitting again.' });
         galleryClaim = { id: body.generationId, metadata: claimedMetadata };
       }
+      if (!quotaChecked && !await enforceDailyGenerationQuota(createUserScopedClient(req), user.id, res)) return;
       const response = await fetch(`${FAL_QUEUE_BASE}/${endpoint}`, {
         method: 'POST',
         headers: {

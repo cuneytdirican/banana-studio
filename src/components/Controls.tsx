@@ -241,7 +241,9 @@ export const Controls: React.FC<ControlsProps> = ({
 
   // --- Config Handlers ---
   const updateConfig = (key: keyof GenerationConfig, value: any) => {
-    onChange(key === 'prompt' ? { ...updateImageDraftPrompt(config, value), promptPreparation: undefined } : { ...config, [key]: value });
+    onChange(key === 'prompt'
+      ? { ...updateImageDraftPrompt(config, value), promptPreparation: undefined }
+      : { ...config, [key]: value, ...(key === 'imageModel' && value === SUNBURST_MODEL ? { seed: undefined } : {}) });
   };
 
   const isH3VideoConfig = config.mode === 'video' && config.videoModel === 'minimax-h3';

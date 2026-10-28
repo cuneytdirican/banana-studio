@@ -14,14 +14,18 @@ export const TagsEditor = ({
 }) => {
   const [draft, setDraft] = useState('');
   const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const tags = media.tags || [];
 
   const save = async (next: string[]) => {
     if (busy) return;
     setBusy(true);
+    setError(null);
     try {
       await onUpdate(next);
       setDraft('');
+    } catch (failure) {
+      setError(failure instanceof Error ? failure.message : 'Tags could not be saved.');
     } finally {
       setBusy(false);
     }
@@ -86,6 +90,7 @@ export const TagsEditor = ({
         )}
         {readOnly && !tags.length && <span className="text-[11px] text-gray-600">No tags</span>}
       </div>
+      {error && <p role="alert" className="mt-2 text-[11px] text-red-300">{error}</p>}
     </div>
   );
 };

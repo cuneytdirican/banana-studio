@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 import { applyTemplateVariables, extractTemplateVariables, missingTemplateVariables } from '../lib/prompts/templateVariables';
 import type { Template } from '../types';
@@ -17,11 +18,37 @@ export const TemplateVariablesDialog = ({
     Object.fromEntries(variables.map(name => [name, ''])),
   );
   const missing = missingTemplateVariables(template.config.prompt, values);
+  const dialogRef = useRef<HTMLDialogElement>(null);
+  const previousFocus = useRef<HTMLElement | null>(null);
 
-  return (
-    <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/70 p-4" role="dialog" aria-modal="true" aria-labelledby="template-variables-title">
+  useEffect(() => {
+    previousFocus.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const dialog = dialogRef.current;
+    if (dialog && !dialog.open) {
+      if (typeof dialog.showModal === 'function') dialog.showModal();
+      else dialog.setAttribute('open', '');
+    }
+    return () => {
+      if (dialog?.open) {
+        if (typeof dialog.close === 'function') dialog.close();
+        else dialog.removeAttribute('open');
+      }
+      previousFocus.current?.focus();
+    };
+  }, []);
+
+  return createPortal(
+    <dialog
+      ref={dialogRef}
+      onCancel={event => {
+        event.preventDefault();
+        onCancel();
+      }}
+      aria-labelledby="template-variables-title"
+      className="w-[calc(100%-2rem)] max-w-md rounded-2xl border border-gray-700 bg-[#161b22] p-0 text-white shadow-2xl backdrop:bg-black/70"
+    >
       <form
-        className="w-full max-w-md rounded-2xl border border-gray-700 bg-[#161b22] p-5 shadow-2xl"
+        className="p-5"
         onSubmit={event => {
           event.preventDefault();
           if (missing.length) return;
@@ -66,6 +93,7 @@ export const TemplateVariablesDialog = ({
           </button>
         </div>
       </form>
-    </div>
+    </dialog>,
+    document.body,
   );
 };

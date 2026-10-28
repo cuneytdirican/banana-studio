@@ -11,7 +11,7 @@ needs.
 | --- | --- | --- |
 | #55 | Strict TypeScript, lint/format, tests, module splitting, CORS allowlist, daily quota | Open |
 | #56 | Issue backlog closure record | Open |
-| #57 | Seed lock, gallery tags, export metadata sidecar, job notifications, template variables | Open |
+| #57 | Seed lock, gallery tags, export metadata sidecar, job notifications, template variables, prompt history, model playground | Open |
 
 Acceptance: all checks pass; no production dependency advisories; the gallery
 and composer keep working in cloud and local modes.
@@ -79,4 +79,4 @@ target OS, not only in CI.
 3. Put unfinished large features behind a flag and merge them disabled.
 4. Do not close an issue until the merged change or an explicit maintainer
    decision resolves it.
-5. Keep the MindAeon attribution in release and contributor documentation.
+5. Keep the MindAeon attribution in release and contributor documentation unless the fork owner replaces it.

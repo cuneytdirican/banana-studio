@@ -39,10 +39,13 @@ export const SeedControl = ({
         placeholder="random"
         aria-label="Seed value"
         onChange={event => {
-          const value = Number(event.target.value);
+          const raw = event.target.value;
+          if (raw.trim() === '') return;
+          const value = Number(raw);
+          if (!Number.isFinite(value)) return;
           onChange(current => ({
             ...current,
-            seed: Number.isFinite(value) ? Math.max(0, Math.min(MAX_SEED, Math.floor(value))) : undefined,
+            seed: Math.max(0, Math.min(MAX_SEED, Math.floor(value))),
           }));
         }}
         className="w-20 bg-transparent text-[11px] tabular-nums text-gray-200 outline-none placeholder:text-gray-600 disabled:opacity-50"

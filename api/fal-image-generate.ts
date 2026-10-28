@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { applyCors, createUserScopedClient, requireUser } from './_lib/auth.js';
-import { enforceDailyGenerationQuota } from './_lib/generationQuota.js';
+import { enforceDailyGenerationQuota, recordAcceptedUsage } from './_lib/generationQuota.js';
 import { prepareTaskRegistry, registerProviderTask } from './_lib/providerTasks.js';
 import { getNanoBanana21InputError, NANO_BANANA_21_ENDPOINT } from '../src/lib/images/nanoBanana21.js';
 
@@ -159,6 +159,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     await registerProviderTask(registry, 'fal', data.request_id, user.id);
+    await recordAcceptedUsage(registry, { userId: user.id, action: 'generate', model: body.endpoint || 'fal-image', prompt: body.prompt, imageCount: 1 });
 
     console.log(
       `[fal-submit] endpoint=${endpoint} request_id=${data.request_id}`,

@@ -45,4 +45,15 @@ describe('SeedControl', () => {
     rerender(<SeedControl config={config} onChange={onChange} />);
     expect(config.seed).toBeUndefined();
   });
+
+  it('does not silently store 0 when the field is cleared', () => {
+    let config = { ...baseConfig, seed: 42 };
+    const onChange = (next: GenerationConfig | ((current: GenerationConfig) => GenerationConfig)) => {
+      config = typeof next === 'function' ? next(config) : next;
+    };
+    render(<SeedControl config={config} onChange={onChange} />);
+
+    fireEvent.change(screen.getByLabelText('Seed value'), { target: { value: '' } });
+    expect(config.seed).toBe(42);
+  });
 });

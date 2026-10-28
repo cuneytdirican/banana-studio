@@ -24,6 +24,7 @@ import { buildFolderPreviewIndex } from './folderPreviews';
 import { groupBrainstormImages } from './galleryOrdering';
 import { buildExportMetadata } from '../lib/gallery/exportMetadata';
 import { GalleryIntelligenceDialog } from './GalleryIntelligenceDialog';
+import { LazyBoundary } from './LazyBoundary';
 import { getGalleryAspectRatio, getGalleryCardStyle, getGallerySwipeDirection, isGalleryDismissSwipe, getNavigableGalleryMedia, type GallerySwipeStart } from './galleryPresentation';
 import { GALLERY_DRAG_TYPE, GALLERY_DRAG_ID, GALLERY_DRAG_MEDIA_IDS, getDraggedMediaIds, readGalleryDragPayload, getMediaIdsForMove, canMoveGalleryFolder, type GalleryDragPayload } from './galleryDragDrop';
 
@@ -1218,9 +1219,11 @@ export const Gallery: React.FC<GalleryProps> = ({
   ) : null;
 
   const searchDialog = isSearchOpen && (
-    <React.Suspense fallback={null}>
-      <GallerySearchDialog images={images} folders={folders} ownerId={galleryOwner?.user_id} isLoading={isGalleryIndexLoading || isFoldersLoading} loadError={galleryLoadError || folderLoadError} onClose={closeSearch} onSelect={selectSearchResult} />
-    </React.Suspense>
+    <LazyBoundary label="Gallery search">
+      <React.Suspense fallback={null}>
+        <GallerySearchDialog images={images} folders={folders} ownerId={galleryOwner?.user_id} isLoading={isGalleryIndexLoading || isFoldersLoading} loadError={galleryLoadError || folderLoadError} onClose={closeSearch} onSelect={selectSearchResult} />
+      </React.Suspense>
+    </LazyBoundary>
   );
   if (isEmpty && !currentFolderId && !showFavoritesOnly) {
     return (
@@ -1328,10 +1331,12 @@ export const Gallery: React.FC<GalleryProps> = ({
         onSelect={id => { setSelectedMediaId(id); setIsIntelligenceOpen(false); }}
       />
 
-      <React.Suspense fallback={null}>
-        <HelpCenter open={isHelpCenterOpen} onClose={() => setIsHelpCenterOpen(false)} />
-        {sharingFolder && !isReadOnly && <FolderShareDialog key={sharingFolder.id} folder={sharingFolder} onClose={() => setSharingFolder(null)} />}
-      </React.Suspense>
+      <LazyBoundary label="Help and sharing">
+        <React.Suspense fallback={null}>
+          {isHelpCenterOpen && <HelpCenter open onClose={() => setIsHelpCenterOpen(false)} />}
+          {sharingFolder && !isReadOnly && <FolderShareDialog key={sharingFolder.id} folder={sharingFolder} onClose={() => setSharingFolder(null)} />}
+        </React.Suspense>
+      </LazyBoundary>
 
       {isCreatingFolder && !isReadOnly && (
         <div
@@ -2394,22 +2399,26 @@ export const Gallery: React.FC<GalleryProps> = ({
       )}
 
       {comparisonIds && (
-        <React.Suspense fallback={null}>
-          <ImageCompareDialog images={comparisonImages} onClose={closeComparison}
-            onToggleFavorite={onToggleFavorite} isReadOnly={isReadOnly} loadDetails={loadComparisonDetails} refreshSource={refreshComparisonSource} />
-        </React.Suspense>
+        <LazyBoundary label="Image comparison">
+          <React.Suspense fallback={null}>
+            <ImageCompareDialog images={comparisonImages} onClose={closeComparison}
+              onToggleFavorite={onToggleFavorite} isReadOnly={isReadOnly} loadDetails={loadComparisonDetails} refreshSource={refreshComparisonSource} />
+          </React.Suspense>
+        </LazyBoundary>
       )}
 
       {isYouTubePreviewOpen && selectedMedia && isComparableImage(selectedMedia) && (
-        <React.Suspense fallback={null}>
-          <YouTubePreviewDialog
+        <LazyBoundary label="YouTube preview">
+          <React.Suspense fallback={null}>
+            <YouTubePreviewDialog
             media={selectedMedia}
             currentIndex={previewIndex} totalImages={previewImages.length} favoritesOnly={showFavoritesOnly}
             onNavigate={direction => handleNavigate(direction, true)}
             initialTitle={folders.find(folder => folder.id === selectedMedia.folderId)?.name || selectedMedia.referenceImages?.find(ref => ref.youtubeSource?.title)?.youtubeSource?.title || 'Your next video'}
             channelName={galleryOwner?.display_name || userProfile?.display_name}
-            onClose={() => setIsYouTubePreviewOpen(false)} refreshSource={refreshComparisonSource} />
-        </React.Suspense>
+              onClose={() => setIsYouTubePreviewOpen(false)} refreshSource={refreshComparisonSource} />
+          </React.Suspense>
+        </LazyBoundary>
       )}
 
       {/* Detail Modal */}
@@ -2509,9 +2518,11 @@ export const Gallery: React.FC<GalleryProps> = ({
               </div>}
             </> : null}
             {canEditSelectedMedia && (isEditingSelectedMedia || isDetailsVisible) && <div className={`w-full flex shrink-0 flex-col items-center ${isEditingSelectedMedia ? 'md:my-auto' : ''}`} onClick={event => event.stopPropagation()}>
-              <React.Suspense fallback={null}>
-                <GalleryImageEditor key={selectedMedia.id} image={selectedMedia} images={images} isEditing={isEditingSelectedMedia} onStart={() => setEditingMediaId(selectedMedia.id)} onGenerate={onEditGenerate!} onClose={() => setEditingMediaId(null)} onEditResult={result => { setSelectedMediaId(result.id); setEditingMediaId(result.id); }} initialTextModel={imageEditTextModel} refreshSource={refreshComparisonSource} />
-              </React.Suspense>
+              <LazyBoundary label="Image editor">
+                <React.Suspense fallback={null}>
+                  <GalleryImageEditor key={selectedMedia.id} image={selectedMedia} images={images} isEditing={isEditingSelectedMedia} onStart={() => setEditingMediaId(selectedMedia.id)} onGenerate={onEditGenerate!} onClose={() => setEditingMediaId(null)} onEditResult={result => { setSelectedMediaId(result.id); setEditingMediaId(result.id); }} initialTextModel={imageEditTextModel} refreshSource={refreshComparisonSource} />
+                </React.Suspense>
+              </LazyBoundary>
             </div>}
           </div>
 

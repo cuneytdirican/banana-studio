@@ -1,7 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { GoogleGenAI } from '@google/genai';
 import { applyCors, createUserScopedClient, requireUser } from './_lib/auth.js';
-import { enforceDailyGenerationQuota } from './_lib/generationQuota.js';
+import { enforceDailyGenerationQuota, recordAcceptedUsage } from './_lib/generationQuota.js';
 import { createTaskDeadline, waitForTask } from '../src/lib/shared/asyncTask.js';
 
 interface GeminiGenerateRequest {
@@ -112,6 +112,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       model, contents,
       config: { ...safeConfig, abortSignal: provider.signal, httpOptions: { timeout: 250_000 } },
     } as any), provider.signal);
+    await recordAcceptedUsage(createUserScopedClient(req), {
+      userId: user.id,
+      action: kind === 'video' ? 'video_generate' : 'generate',
+      model,
+      imageCount: 1,
+    });
 
     // Surfaced in `vercel logs` so we can see how long each Gemini call took
     // — handy when a brainstorm timeout strikes again.

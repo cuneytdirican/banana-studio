@@ -10,8 +10,9 @@ const AdminPanel = React.lazy(() => import('./components/AdminPanel').then(modul
 import { useToast } from './components/Toast';
 import { useWorkspaceSession } from './hooks/useWorkspaceSession';
 import { useGalleryHash } from './hooks/useGalleryHash';
-import { useJobNotifications } from './hooks/useJobNotifications';
+import { requestNotificationPermission, useJobNotifications } from './hooks/useJobNotifications';
 import { ModelPlayground } from './components/ModelPlayground';
+import { LazyBoundary } from './components/LazyBoundary';
 import { clearPromptHistory, loadPromptHistory, recordPromptHistory, type PromptHistoryEntry } from './lib/prompts/promptHistoryStore';
 import { AdminUserSummary, GenerationConfig, GeneratedMedia, Template, UserProfile, DEFAULT_IMAGE_MODEL, DEFAULT_VIDEO_MODEL, getActiveImageModel, isEnhancedPromptStale } from './types';
 import { generateMedia, brainstormIdeas, generatePromptVariation, isFalImageModel } from './services/geminiService';
@@ -774,6 +775,7 @@ const AuthorizedWorkspace: React.FC<{
   };
 
   const handleGenerate = async (requestConfig: GenerationConfig = config, fromEditor = false) => {
+    requestNotificationPermission();
     if (!fromEditor && recreateLoadingRef.current !== null) {
       toast.info('Loading saved references', 'Wait for the saved references to finish loading before generating.');
       return;
@@ -1650,7 +1652,20 @@ const AuthorizedWorkspace: React.FC<{
   };
 
   const handleSelectPromptHistory = (entry: PromptHistoryEntry) => {
-    setConfig(prev => ({ ...prev, prompt: entry.prompt }));
+    setConfig(prev => ({
+      ...prev,
+      prompt: entry.prompt,
+      originalPrompt: undefined,
+      promptPreparation: undefined,
+      enhancedForMode: undefined,
+      enhancedForImageModel: undefined,
+      enhancedForImageContextKey: undefined,
+      enhancedForVideoModel: undefined,
+      enhancedForVideoOperation: undefined,
+      enhancedForVideoReferenceKey: undefined,
+      enhancedForH3MaxMode: undefined,
+      enhancedForH3MaxOptionsKey: undefined,
+    }));
   };
 
   const handleClearPromptHistory = () => setPromptHistory(clearPromptHistory(userId));
@@ -1702,14 +1717,16 @@ const AuthorizedWorkspace: React.FC<{
       <WorkspaceBar profile={userProfile} onOpenAdmin={() => setIsAdminPanelOpen(true)} onOpenPlayground={() => setIsPlaygroundOpen(true)} onSignOut={handleSignOut} />
       {/* Admin Panel */}
       {!isLocalWorkspace() && userProfile?.role === 'admin' && (
-        <React.Suspense fallback={null}>
-          <AdminPanel
-            isOpen={isAdminPanelOpen}
-            onClose={() => setIsAdminPanelOpen(false)}
-            onViewUserGallery={handleViewUserGallery}
-            onBillingReconciled={refreshReconciledGalleryBilling}
-          />
-        </React.Suspense>
+        <LazyBoundary label="Workspace admin">
+          <React.Suspense fallback={null}>
+            <AdminPanel
+              isOpen={isAdminPanelOpen}
+              onClose={() => setIsAdminPanelOpen(false)}
+              onViewUserGallery={handleViewUserGallery}
+              onBillingReconciled={refreshReconciledGalleryBilling}
+            />
+          </React.Suspense>
+        </LazyBoundary>
       )}
 
       <ModelPlayground

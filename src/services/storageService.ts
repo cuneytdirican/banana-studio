@@ -912,7 +912,7 @@ export const saveImage = async (media: GeneratedMedia, expectedUserId?: string):
       let existingImageMetadata: Record<string, unknown> = {};
       const hasImageMetadata = media.imageModel === 'gpt-image-2.5-sunburst' || media.imageEditSourceId
         || media.imageEditProtection || media.promptPreparation || media.youtubeSource || media.originalPrompt != null
-        || media.tags != null;
+        || media.tags != null || media.seed != null;
       if (hasImageMetadata) {
         const { data, error } = await supabase.from('generations').select('metadata').eq('id', media.id).maybeSingle();
         if (error) throw new Error(`Could not preserve the saved image details: ${error.message}`);
@@ -945,14 +945,15 @@ export const saveImage = async (media: GeneratedMedia, expectedUserId?: string):
           openaiStartedAt: media.openaiStartedAt, generationCost: media.generationCost,
           generationStartedAt: media.generationStartedAt, generationCompletedAt: media.generationCompletedAt,
           generationTime: media.generationTime,
-          seed: media.seed,
-          tags: normalizeTags(media.tags),
+          ...(media.seed != null ? { seed: media.seed } : {}),
+          ...(media.tags !== undefined ? { tags: normalizeTags(media.tags) } : {}),
         } } : hasImageMetadata ? { metadata: { ...existingImageMetadata,
           ...(media.youtubeSource ? { youtubeSource: normalizeYouTubeSource(media.youtubeSource) } : {}),
           ...(media.promptPreparation ? { promptPreparation: normalizePromptPreparation(media.promptPreparation) } : {}), imageEditSourceId: media.imageEditSourceId,
           imageEditProtection: media.imageEditProtection, originalPrompt: media.originalPrompt,
           imagePromptCategory: media.imagePromptCategory, imageOutputSize: media.imageOutputSize,
-          seed: media.seed, tags: normalizeTags(media.tags) } } : {}),
+          ...(media.seed != null ? { seed: media.seed } : {}),
+          ...(media.tags !== undefined ? { tags: normalizeTags(media.tags) } : {}) } } : {}),
       };
 
       const generationInsertWithPaths = {
@@ -1020,9 +1021,10 @@ export const updateMediaTags = async (id: string, tags: string[], expectedUserId
   if (supabase) {
     const { data, error } = await supabase.from('generations').select('metadata').eq('id', id).maybeSingle();
     if (error) throw new Error('Tags could not be loaded.');
-    const metadata = { ...(data?.metadata || {}), tags: normalized };
-    const { error: updateError } = await supabase.from('generations').update({ metadata }).eq('id', id);
-    if (updateError) throw new Error('Tags could not be saved.');
+    if (!data) throw new Error('This item is no longer available.');
+    const metadata = { ...(data.metadata || {}), tags: normalized };
+    const { data: updated, error: updateError } = await supabase.from('generations').update({ metadata }).eq('id', id).select('id');
+    if (updateError || !updated?.length) throw new Error('Tags could not be saved.');
     return normalized;
   }
   const db = await openDB();
