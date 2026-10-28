@@ -11,6 +11,7 @@ import { useToast } from './components/Toast';
 import { useWorkspaceSession } from './hooks/useWorkspaceSession';
 import { useGalleryHash } from './hooks/useGalleryHash';
 import { useJobNotifications } from './hooks/useJobNotifications';
+import { clearPromptHistory, loadPromptHistory, recordPromptHistory, type PromptHistoryEntry } from './lib/prompts/promptHistoryStore';
 import { AdminUserSummary, GenerationConfig, GeneratedMedia, Template, UserProfile, DEFAULT_IMAGE_MODEL, DEFAULT_VIDEO_MODEL, getActiveImageModel, isEnhancedPromptStale } from './types';
 import { generateMedia, brainstormIdeas, generatePromptVariation, isFalImageModel } from './services/geminiService';
 import * as workspaceStorage from './services/storageService';
@@ -148,6 +149,7 @@ const AuthorizedWorkspace: React.FC<{
   const [generatedMedia, setGeneratedMedia] = useState<GeneratedMedia[]>([]);
   const [imageCostHistory, setImageCostHistory] = useState<{ userId: string; samples: ImageCostSample[] } | null>(null);
   const [templates, setTemplates] = useState<Template[]>([]);
+  const [promptHistory, setPromptHistory] = useState<PromptHistoryEntry[]>([]);
   const [isInitialGalleryLoading, setIsInitialGalleryLoading] = useState(false);
   const [isGalleryIndexLoading, setIsGalleryIndexLoading] = useState(false);
   const [galleryHistoryError, setGalleryHistoryError] = useState<string | null>(null);
@@ -241,6 +243,7 @@ const AuthorizedWorkspace: React.FC<{
 
         setGeneratedMedia(current => mergeLoadedGalleryHistory(current, migratedHistory, historyLoadStartedAt));
         setTemplates(normalizedTemplates);
+        setPromptHistory(loadPromptHistory(userId));
         
         // Resume pending/processing videos and recover rows that were marked
         // failed only because the provider status endpoint returned a transient
@@ -783,6 +786,7 @@ const AuthorizedWorkspace: React.FC<{
       toast.warning('Re-enhance Required', 'The model, action, or references changed after Enhance. Revert to the original prompt, then Enhance again.');
       return;
     }
+    if (!fromEditor && config.prompt.trim()) setPromptHistory(recordPromptHistory(userId, config));
 
     // Video generation flow -- persists to DB immediately
     if (config.mode === 'video') {
@@ -1643,6 +1647,12 @@ const AuthorizedWorkspace: React.FC<{
     }
   };
 
+  const handleSelectPromptHistory = (entry: PromptHistoryEntry) => {
+    setConfig(prev => ({ ...prev, prompt: entry.prompt }));
+  };
+
+  const handleClearPromptHistory = () => setPromptHistory(clearPromptHistory(userId));
+
   const handleSelectTemplate = (template: Template) => {
     try {
       const imageModel = resolveImageModel(template.config.imageModel ?? config.imageModel);
@@ -1749,6 +1759,9 @@ const AuthorizedWorkspace: React.FC<{
           activeRequests={activeRequests}
           generationProgress={generationProgress}
           templates={templates}
+          promptHistory={promptHistory}
+          onSelectPromptHistory={handleSelectPromptHistory}
+          onClearPromptHistory={handleClearPromptHistory}
           onSaveTemplate={handleSaveTemplate}
           onUpdateTemplate={handleUpdateTemplate}
           onDeleteTemplate={handleDeleteTemplate}

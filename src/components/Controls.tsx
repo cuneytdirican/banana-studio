@@ -57,12 +57,17 @@ interface ControlsProps {
   onUpdateTemplate: (template: Template) => void;
   onDeleteTemplate: (id: string) => void;
   onSelectTemplate: (template: Template) => void;
+  promptHistory: PromptHistoryEntry[];
+  onSelectPromptHistory: (entry: PromptHistoryEntry) => void;
+  onClearPromptHistory: () => void;
 }
 
 
 import { isH3MetadataOnlyUpdate } from './controls/controlDraft';
 import { getMimeType, readAudioDuration, readFileAsBase64, readVideoDuration, uploadReferenceVideo } from './controls/controlReferences';
 import { RefActionPopover, type RefActionItem } from './controls/RefActionPopover';
+import { PromptHistoryMenu } from './PromptHistoryMenu';
+import type { PromptHistoryEntry } from '../lib/prompts/promptHistoryStore';
 
 export const Controls: React.FC<ControlsProps> = ({
   config,
@@ -80,6 +85,9 @@ export const Controls: React.FC<ControlsProps> = ({
   onUpdateTemplate,
   onDeleteTemplate,
   onSelectTemplate,
+  promptHistory,
+  onSelectPromptHistory,
+  onClearPromptHistory,
 }) => {
   const refInputRef = useRef<HTMLInputElement>(null);
   const videoInputRef = useRef<HTMLInputElement>(null);
@@ -2283,6 +2291,12 @@ export const Controls: React.FC<ControlsProps> = ({
                 >
                     <LayoutTemplate className="w-5 h-5" />
                 </button>
+
+                <PromptHistoryMenu
+                    entries={promptHistory}
+                    onSelect={onSelectPromptHistory}
+                    onClear={onClearPromptHistory}
+                />
 
                 {/* Template Menu Dropdown */}
                 {isTemplateMenuOpen && createPortal(
