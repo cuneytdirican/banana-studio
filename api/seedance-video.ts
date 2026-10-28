@@ -30,8 +30,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       for (const field of ['imageUrls','videoUrls','audioUrls']) {
         if (body[field] != null && (!Array.isArray(body[field]) || body[field].some((url: unknown) => !isReferenceUrl(url) && !(provider === 'openrouter' && typeof url === 'string' && /^data:image\/(?:png|jpeg|webp);base64,[a-zA-Z0-9+/=]+$/.test(url))))) return res.status(400).json({ error: 'Invalid reference media.' });
       }
-      if (!await enforceDailyGenerationQuota(createUserScopedClient(req), user.id, res)) return;
       const registry = await prepareTaskRegistry(res); if (!registry) return;
+      if (!await enforceDailyGenerationQuota(createUserScopedClient(req), user.id, res)) return;
       const fal = falSeedanceInput(body);
       const response = await fetch(provider === 'fal' ? `https://queue.fal.run/${fal.endpoint}` : 'https://openrouter.ai/api/v1/videos', {
         method: 'POST', redirect: 'error', signal: AbortSignal.timeout(55_000), headers: { Authorization: `${provider === 'fal' ? 'Key' : 'Bearer'} ${process.env[PROVIDER_KEYS[provider]]}`, 'Content-Type':'application/json' },
