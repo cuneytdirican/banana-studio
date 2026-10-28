@@ -6,7 +6,7 @@ import { getPersonId, cleanPersonName } from '../src/lib/references/personRefere
 import { normalizePromptPreparation } from '../src/lib/prompts/promptPreparation.js';
 import { normalizeYouTubeSource } from '../src/lib/youtube/youtubeSource.js';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { applyCors, createUserScopedClient, requireUser, type AuthenticatedUser } from './_lib/auth.js';
+import { applyCors, createServiceRoleClient, createUserScopedClient, requireUser, type AuthenticatedUser } from './_lib/auth.js';
 import { calculateOpenAIImageCost, getOpenAIImageOptions, getOpenAIImageSize, SUNBURST_MODEL, validateOpenAIImageOptions, validateOpenAIImageSize } from '../src/lib/images/openaiImage.js';
 import { prepareSunburstGeneration, getSunburstEditIntent } from '../src/lib/images/imagePrompting.js';
 import { EDIT_REGION_REQUIRED, isValidEditRegion, copyEditRegion, describeEditRegion } from '../src/lib/images/imageEditRegion.js';
@@ -14,7 +14,7 @@ import { readEditSource, compositeProtectedEdit } from './_lib/protectedImageEdi
 import { readImageDimensions } from './_lib/imageDimensions.js';
 import { saveGeneratedImage, readStoredImage, imageSha256, signedMediaUrl, canonicalMediaUrl } from './_lib/imageStorage.js';
 import { startOpenAIRequest } from './_lib/openaiGuard.js';
-import { enforceDailyGenerationQuota } from './_lib/generationQuota.js';
+import { enforceDailyGenerationQuota, releaseGenerationQuotas } from './_lib/generationQuota.js';
 import { openAIErrorMessage, safeOpenAIErrorCode, imageRateLimitDelay } from './_lib/openaiError.js';
 
 // Match the existing deployment's 300-second function budget. No automatic
@@ -30,7 +30,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
   const user = await requireUser(req, res);
   if (!user) return;
-  if (!await enforceDailyGenerationQuota(createUserScopedClient(req), user.id, res)) return;
   return executeOpenAIImage(req,res,{ user,db:createUserScopedClient(req) });
 }
 
@@ -107,6 +106,10 @@ export async function executeOpenAIImage(req:VercelRequest,res:VercelResponse,co
   if (generationPrompt.length > 32000) return res.status(400).json({ error: 'Shorten the prompt to leave room for reference and canvas instructions (32,000 characters total).' });
   const guard = context.guard || await startOpenAIRequest(req, res, user, 'image', body.id);
   if (!guard) return;
+  if (!context.guard && !await enforceDailyGenerationQuota(db, user.id, res, provider, createServiceRoleClient())) {
+    await guard.finish('rejected');
+    return;
+  }
   let providerStatus: number | undefined;
   let providerErrorCode: string | undefined;
   let outcome: 'completed' | 'failed' | 'rejected' = 'rejected';
@@ -129,6 +132,7 @@ export async function executeOpenAIImage(req:VercelRequest,res:VercelResponse,co
       reference_images: safeRefs.map(ref => ({ ...ref, data: canonicalMediaUrl(ref.data) })), status: 'processing', metadata,
     });
     if (insertError) {
+      if (!context.guard) await releaseGenerationQuotas(createServiceRoleClient(), user.id, provider);
       await guard.finish('rejected');
       return res.status(insertError.code === '23505' ? 409 : 500).json({ error: 'Could not create the saved generation. No OpenAI request was sent.',
         ...(insertError.code === '23505' ? { code: 'GENERATION_EXISTS' } : {}),

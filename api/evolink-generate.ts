@@ -1,6 +1,6 @@
-import type { VercelRequest, VercelResponse } from '@vercel/node';
+﻿import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { describeEvoLinkFailure } from './_lib/evolink-errors.js';
-import { applyCors, createUserScopedClient, requireUser } from './_lib/auth.js';
+import { applyCors, createServiceRoleClient, createUserScopedClient, requireUser } from './_lib/auth.js';
 import { enforceDailyGenerationQuota, recordAcceptedUsage } from './_lib/generationQuota.js';
 import { prepareTaskRegistry, registerProviderTask } from './_lib/providerTasks.js';
 
@@ -188,9 +188,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     requestBody.model = model;
 
-    if (!await enforceDailyGenerationQuota(createUserScopedClient(req), user.id, res, 'evolink')) return;
     const registry = await prepareTaskRegistry(res);
     if (!registry) return;
+    if (!await enforceDailyGenerationQuota(createUserScopedClient(req), user.id, res, 'evolink', createServiceRoleClient())) return;
 
     const response = await fetch(`${EVOLINK_BASE}/v1/videos/generations`, {
       method: 'POST',

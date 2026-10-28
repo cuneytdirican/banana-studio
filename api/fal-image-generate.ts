@@ -1,5 +1,5 @@
-import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { applyCors, createUserScopedClient, requireUser } from './_lib/auth.js';
+﻿import type { VercelRequest, VercelResponse } from '@vercel/node';
+import { applyCors, createServiceRoleClient, createUserScopedClient, requireUser } from './_lib/auth.js';
 import { enforceDailyGenerationQuota, recordAcceptedUsage } from './_lib/generationQuota.js';
 import { prepareTaskRegistry, registerProviderTask } from './_lib/providerTasks.js';
 import { getNanoBanana21InputError, NANO_BANANA_21_ENDPOINT } from '../src/lib/images/nanoBanana21.js';
@@ -120,9 +120,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
-    if (!await enforceDailyGenerationQuota(createUserScopedClient(req), user.id, res, 'fal')) return;
     const registry = await prepareTaskRegistry(res);
     if (!registry) return;
+    if (!await enforceDailyGenerationQuota(createUserScopedClient(req), user.id, res, 'fal', createServiceRoleClient())) return;
     const response = await fetch(`${FAL_QUEUE_BASE}/${endpoint}`, {
       method: 'POST',
       headers: {

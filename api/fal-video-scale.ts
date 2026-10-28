@@ -1,5 +1,5 @@
-import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { applyCors, createUserScopedClient, requireUser } from './_lib/auth.js';
+﻿import type { VercelRequest, VercelResponse } from '@vercel/node';
+import { applyCors, createServiceRoleClient, createUserScopedClient, requireUser } from './_lib/auth.js';
 import { enforceDailyGenerationQuota, recordAcceptedUsage } from './_lib/generationQuota.js';
 import { prepareTaskRegistry, registerProviderTask, requireProviderTask } from './_lib/providerTasks.js';
 
@@ -16,7 +16,7 @@ const extractFalErrorMessage = (raw: unknown): string => {
     const messages = raw
       .map((entry: any) => entry?.msg || entry?.message)
       .filter((message: unknown): message is string => typeof message === 'string' && message.length > 0);
-    if (messages.length > 0) return messages.join(' • ');
+    if (messages.length > 0) return messages.join(' â€¢ ');
   }
   if (typeof raw === 'object') {
     const value = raw as Record<string, any>;
@@ -70,9 +70,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return res.status(400).json({ error: 'Video dimensions must be even integers from 300 to 6000 pixels' });
       }
 
-      if (!await enforceDailyGenerationQuota(createUserScopedClient(req), user.id, res, 'fal')) return;
       const registry = await prepareTaskRegistry(res);
       if (!registry) return;
+      if (!await enforceDailyGenerationQuota(createUserScopedClient(req), user.id, res, 'fal', createServiceRoleClient())) return;
       const response = await fetch(`${FAL_QUEUE_BASE}/${SCALE_ENDPOINT}`, {
         method: 'POST',
         headers: {

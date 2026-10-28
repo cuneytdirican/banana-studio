@@ -1,5 +1,5 @@
-import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { applyCors, createUserScopedClient, requireUser } from './_lib/auth.js';
+﻿import type { VercelRequest, VercelResponse } from '@vercel/node';
+import { applyCors, createServiceRoleClient, createUserScopedClient, requireUser } from './_lib/auth.js';
 import { OPENAI_TEXT_MODEL, calculateOpenAITextCost, DEFAULT_OPENAI_REASONING, isOpenAIReasoningEffort } from '../src/lib/prompts/openaiText.js';
 import { createTaskDeadline, waitForTask } from '../src/lib/shared/asyncTask.js';
 import { startOpenAIRequest, openAIErrorMessage } from './_lib/openaiGuard.js';
@@ -19,7 +19,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const user = await requireUser(req, res, auth.signal).finally(() => auth.dispose());
   if (!user) return;
   const key = process.env.OPENAI_API_KEY;
-  if (!key) return res.status(503).json({ error: 'OPENAI_API_KEY sunucuda tanımlı değil. GPT-6.1 Sol için OpenAI anahtarını ekle.' });
+  if (!key) return res.status(503).json({ error: 'OPENAI_API_KEY sunucuda tanÄ±mlÄ± deÄŸil. GPT-6.1 Sol iÃ§in OpenAI anahtarÄ±nÄ± ekle.' });
 
   let body: any;
   try { body = typeof req.body === 'string' ? JSON.parse(req.body) : req.body; }
@@ -76,7 +76,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (streaming) { send({ type: 'error', error }); return res.end(); }
     return res.status(status).json({ error });
   };
-  if (!await enforceDailyGenerationQuota(createUserScopedClient(req), user.id, res, 'openai')) {
+  if (!await enforceDailyGenerationQuota(createUserScopedClient(req), user.id, res, 'openai', createServiceRoleClient())) {
     await guard.finish('failed', null, 429);
     return;
   }
@@ -131,20 +131,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       console.warn('Could not confirm GPT-6.1 Sol text usage recording');
     } finally { accounting.dispose(); }
 
-    if (data?.status !== 'completed') return fail(502, 'GPT-6.1 Sol yanıtı tamamlanamadı. İsteği kısaltıp yeniden dene.');
+    if (data?.status !== 'completed') return fail(502, 'GPT-6.1 Sol yanÄ±tÄ± tamamlanamadÄ±. Ä°steÄŸi kÄ±saltÄ±p yeniden dene.');
     const output = (Array.isArray(data.output) ? data.output : [])
       .filter((item: any) => item?.type === 'message' && item.role === 'assistant')
       .flatMap((item: any) => Array.isArray(item.content) ? item.content : []);
     const refusal = output.find((item: any) => item?.type === 'refusal');
-    if (refusal) return fail(422, 'GPT-6.1 Sol bu isteği yanıtlayamadı.');
+    if (refusal) return fail(422, 'GPT-6.1 Sol bu isteÄŸi yanÄ±tlayamadÄ±.');
     let text = output.filter((item: any) => item?.type === 'output_text' && typeof item.text === 'string').map((item: any) => item.text).join('\n');
-    if (!text.trim()) return fail(502, 'GPT-6.1 Sol boş yanıt döndürdü. Yeniden dene.');
+    if (!text.trim()) return fail(502, 'GPT-6.1 Sol boÅŸ yanÄ±t dÃ¶ndÃ¼rdÃ¼. Yeniden dene.');
     if (usageContext.action === 'brainstorm') {
       // Keep the browser's existing array contract while enforcing provider-side
       // structure. A clarification or prose response must never become an idea.
       const normalized = normalizeBrainstormOutput(text, wardrobeFormat, body.brainstormCount);
       if (!normalized) {
-        return fail(502, 'GPT-6.1 Sol fikirleri beklenen biçimde döndürmedi. Yeniden dene.');
+        return fail(502, 'GPT-6.1 Sol fikirleri beklenen biÃ§imde dÃ¶ndÃ¼rmedi. Yeniden dene.');
       }
       // Missing wardrobe is recoverable in the client. Keep otherwise usable
       // scenes and metadata intact; do not convert objects to strings.
@@ -159,7 +159,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   } catch (error: any) {
     const timeout = error?.name === 'TimeoutError' || error?.name === 'AbortError';
     return fail(timeout ? 504 : 502, timeout
-      ? 'GPT-6.1 Sol yanıt süresi aşıldı. İsteği kısaltıp yeniden dene.'
+      ? 'GPT-6.1 Sol yanÄ±t sÃ¼resi aÅŸÄ±ldÄ±. Ä°steÄŸi kÄ±saltÄ±p yeniden dene.'
       : openAIErrorMessage());
   } finally {
     provider.dispose(); clearInterval(heartbeat); res.off?.('close', close);

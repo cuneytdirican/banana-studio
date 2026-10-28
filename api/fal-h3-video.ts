@@ -1,5 +1,5 @@
-import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { applyCors, createUserScopedClient, requireUser } from './_lib/auth.js';
+﻿import type { VercelRequest, VercelResponse } from '@vercel/node';
+import { applyCors, createServiceRoleClient, createUserScopedClient, requireUser } from './_lib/auth.js';
 import { enforceDailyGenerationQuota } from './_lib/generationQuota.js';
 import { prepareTaskRegistry, registerProviderTask, requireProviderTask } from './_lib/providerTasks.js';
 import { buildH3MaxInput, H3_MAX_ENDPOINTS } from '../src/lib/video/h3Max.js';
@@ -46,7 +46,7 @@ const extractFalErrorMessage = (raw: unknown): string => {
     const messages = raw
       .map((entry: any) => entry?.msg || entry?.message)
       .filter((message: unknown): message is string => typeof message === 'string' && message.length > 0);
-    if (messages.length > 0) return messages.join(' • ');
+    if (messages.length > 0) return messages.join(' â€¢ ');
   }
   if (typeof raw === 'object') {
     const value = raw as Record<string, any>;
@@ -189,7 +189,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         if (!claimed) return res.status(409).json({ code: 'GENERATION_SUBMITTING', error: 'This saved video is already being submitted. Check the existing task instead of submitting again.' });
         let quotaAllowed = false;
         try {
-          quotaAllowed = await enforceDailyGenerationQuota(createUserScopedClient(req), user.id, res, 'fal');
+          quotaAllowed = await enforceDailyGenerationQuota(createUserScopedClient(req), user.id, res, 'fal', createServiceRoleClient());
         } catch (quotaError) {
           console.error('H3 quota check failed', quotaError);
           if (!res.writableEnded) res.status(503).json({ error: 'Usage quota could not be verified. Try again shortly.' });
@@ -217,7 +217,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         quotaChecked = true;
         galleryClaim = { id: body.generationId, metadata: claimedMetadata };
       }
-      if (!quotaChecked && !await enforceDailyGenerationQuota(createUserScopedClient(req), user.id, res, 'fal')) return;
+      if (!quotaChecked && !await enforceDailyGenerationQuota(createUserScopedClient(req), user.id, res, 'fal', createServiceRoleClient())) return;
       const response = await fetch(`${FAL_QUEUE_BASE}/${endpoint}`, {
         method: 'POST',
         headers: {

@@ -91,14 +91,14 @@ export const BrandKitDialog = ({
               <span className="mb-1 block text-[11px] font-medium text-gray-400">Primary color</span>
               <div className="flex items-center gap-2">
                 <input type="color" value={draft.primaryColor} onChange={event => setDraft(current => ({ ...current, primaryColor: event.target.value }))} aria-label="Primary color" className="h-9 w-10 rounded border border-gray-700 bg-transparent" />
-                <input value={draft.primaryColor} onChange={event => setDraft(current => ({ ...current, primaryColor: event.target.value }))} className="w-full rounded-lg border border-gray-700 bg-gray-900/70 px-2 py-2 text-xs text-gray-100 outline-none" />
+                <input name="primaryColorHex" aria-label="Primary color hex" maxLength={7} value={draft.primaryColor} onChange={event => setDraft(current => ({ ...current, primaryColor: event.target.value }))} className="w-full rounded-lg border border-gray-700 bg-gray-900/70 px-2 py-2 text-base sm:text-xs text-gray-100 outline-none" />
               </div>
             </label>
             <label className="block">
               <span className="mb-1 block text-[11px] font-medium text-gray-400">Accent color</span>
               <div className="flex items-center gap-2">
                 <input type="color" value={draft.accentColor} onChange={event => setDraft(current => ({ ...current, accentColor: event.target.value }))} aria-label="Accent color" className="h-9 w-10 rounded border border-gray-700 bg-transparent" />
-                <input value={draft.accentColor} onChange={event => setDraft(current => ({ ...current, accentColor: event.target.value }))} className="w-full rounded-lg border border-gray-700 bg-gray-900/70 px-2 py-2 text-xs text-gray-100 outline-none" />
+                <input name="accentColorHex" aria-label="Accent color hex" maxLength={7} value={draft.accentColor} onChange={event => setDraft(current => ({ ...current, accentColor: event.target.value }))} className="w-full rounded-lg border border-gray-700 bg-gray-900/70 px-2 py-2 text-base sm:text-xs text-gray-100 outline-none" />
               </div>
             </label>
           </div>

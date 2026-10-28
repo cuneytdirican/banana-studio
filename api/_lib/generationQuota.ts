@@ -106,6 +106,14 @@ export const recordAcceptedUsage = async (
   }
 };
 
+const alertedKeys = new Set<string>();
+const shouldAlert = (key: string): boolean => {
+  if (alertedKeys.size > 1_000) alertedKeys.clear();
+  if (alertedKeys.has(key)) return false;
+  alertedKeys.add(key);
+  return true;
+};
+
 const rejectQuota = (res: VercelResponse, limit: number): false => {
   res.status(429).json({
     code: 'DAILY_GENERATION_LIMIT',
@@ -145,6 +153,7 @@ export const enforceDailyGenerationQuota = async (
   userId: string,
   res: VercelResponse,
   provider?: string,
+  releaseDb: any = db,
 ): Promise<boolean> => {
   const globalLimit = dailyGenerationLimit();
   const providerLimit = providerDailyLimit(provider);
@@ -165,7 +174,9 @@ export const enforceDailyGenerationQuota = async (
       return false;
     }
     if (data !== true) {
-      void sendQuotaAlert({ scope: 'global', userId, limit: globalLimit });
+      if (shouldAlert(`global:${userId}:${new Date().toISOString().slice(0, 10)}`)) {
+        await sendQuotaAlert({ scope: 'global', userId, limit: globalLimit });
+      }
       return rejectQuota(res, globalLimit);
     }
     reservedGlobal = true;
@@ -174,13 +185,15 @@ export const enforceDailyGenerationQuota = async (
   if (providerLimit && provider) {
     const { data, error } = await db.rpc('reserve_generation_provider_quota', { p_provider: provider, p_limit: providerLimit });
     if (error) {
-      if (reservedGlobal) await releaseGenerationQuotas(db, userId);
+      if (reservedGlobal) await releaseGenerationQuotas(releaseDb, userId);
       res.status(503).json({ error: 'Provider quota could not be verified. Try again shortly.' });
       return false;
     }
     if (data !== true) {
-      void sendQuotaAlert({ scope: 'provider', userId, provider, limit: providerLimit });
-      if (reservedGlobal) await releaseGenerationQuotas(db, userId);
+      if (shouldAlert(`provider:${userId}:${provider}:${new Date().toISOString().slice(0, 10)}`)) {
+        await sendQuotaAlert({ scope: 'provider', userId, provider, limit: providerLimit });
+      }
+      if (reservedGlobal) await releaseGenerationQuotas(releaseDb, userId);
       return rejectProviderQuota(res, provider, providerLimit);
     }
   }

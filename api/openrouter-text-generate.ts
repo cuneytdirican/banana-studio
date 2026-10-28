@@ -1,6 +1,6 @@
-import type { VercelRequest, VercelResponse } from '@vercel/node';
+﻿import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { OPENROUTER_MODELS } from '../src/lib/providers.js';
-import { applyCors, createUserScopedClient, requireUser } from './_lib/auth.js';
+import { applyCors, createServiceRoleClient, createUserScopedClient, requireUser } from './_lib/auth.js';
 import { startOpenAIRequest } from './_lib/openaiGuard.js';
 import { createTaskDeadline, waitForTask } from '../src/lib/shared/asyncTask.js';
 import { DEFAULT_OPENROUTER_REASONING, OPENROUTER_TEXT_MODEL, calculateOpenRouterTextCost, isOpenRouterReasoningEffort, openRouterErrorMessage } from '../src/lib/prompts/openrouterText.js';
@@ -18,7 +18,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const user = await requireUser(req, res, auth.signal).finally(() => auth.dispose());
   if (!user) return;
   const key = process.env.OPENROUTER_API_KEY?.trim();
-  if (!key) return res.status(503).json({ error: 'OPENROUTER_API_KEY sunucuda tanımlı değil. Yönetici OpenRouter anahtarını eklemeli.' });
+  if (!key) return res.status(503).json({ error: 'OPENROUTER_API_KEY sunucuda tanÄ±mlÄ± deÄŸil. YÃ¶netici OpenRouter anahtarÄ±nÄ± eklemeli.' });
   let body: any;
   try { body = typeof req.body === 'string' ? JSON.parse(req.body) : req.body; }
   catch { return res.status(400).json({ error: 'Invalid JSON body' }); }
@@ -63,7 +63,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (streaming) { send({ type: 'error', error }); return res.end(); }
     return res.status(status).json({ error });
   };
-  if (!await enforceDailyGenerationQuota(createUserScopedClient(req), user.id, res, 'openrouter')) {
+  if (!await enforceDailyGenerationQuota(createUserScopedClient(req), user.id, res, 'openrouter', createServiceRoleClient())) {
     await guard.finish('failed', null, 429);
     return;
   }
@@ -109,21 +109,21 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     } catch { usageLoggingPending = true; }
     finally { accounting.dispose(); }
     const choice = data?.choices?.[0];
-    if (choice?.finish_reason !== 'stop') return fail(502, 'Model yanıtı tamamlanamadı. İsteği kısaltıp yeniden dene.');
-    if (choice?.message?.refusal) return fail(422, 'Model bu isteği yanıtlayamadı.');
+    if (choice?.finish_reason !== 'stop') return fail(502, 'Model yanÄ±tÄ± tamamlanamadÄ±. Ä°steÄŸi kÄ±saltÄ±p yeniden dene.');
+    if (choice?.message?.refusal) return fail(422, 'Model bu isteÄŸi yanÄ±tlayamadÄ±.');
     let text = choice?.message?.role === 'assistant' && typeof choice.message.content === 'string' ? choice.message.content : '';
-    if (!text.trim()) return fail(502, 'Model boş yanıt döndürdü. Yeniden dene.');
+    if (!text.trim()) return fail(502, 'Model boÅŸ yanÄ±t dÃ¶ndÃ¼rdÃ¼. Yeniden dene.');
     if (usageContext.action === 'brainstorm') {
       const normalized = normalizeBrainstormOutput(text, wardrobe, body.brainstormCount);
       console.info(`[openrouter-brainstorm] id=${guard.id} expected=${body.brainstormCount ?? 'legacy'} accepted=${normalized ? JSON.parse(normalized).length : 0} thinking=${effort}`);
-      if (!normalized) return fail(502, 'Model fikirleri beklenen biçimde döndürmedi. Yeniden dene.');
+      if (!normalized) return fail(502, 'Model fikirleri beklenen biÃ§imde dÃ¶ndÃ¼rmedi. Yeniden dene.');
       text = normalized;
     }
     if (analysis) {
       let value: any;
       try { value = JSON.parse(text); } catch { /* checked below */ }
       if (typeof value?.videoAvailable !== 'boolean' || typeof value.brief !== 'string' || typeof value.premise !== 'string'
-        || typeof value.limitation !== 'string' || !Array.isArray(value.evidence)) return fail(502, 'Model video analizini beklenen biçimde döndürmedi.');
+        || typeof value.limitation !== 'string' || !Array.isArray(value.evidence)) return fail(502, 'Model video analizini beklenen biÃ§imde dÃ¶ndÃ¼rmedi.');
     }
     const result = { text, candidates: null, provider: 'openrouter', providerModel: upstreamModel, usageMetadata: { provider: 'openrouter', openrouterUsage: data.usage ?? null, usageLogged, usageLoggingPending }, requestId: guard.id };
     outcome = 'completed'; await guard.finish('completed', requestId, providerStatus);
@@ -131,7 +131,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(200).json(result);
   } catch (error: any) {
     const timeout = error?.name === 'TimeoutError' || error?.name === 'AbortError';
-    return fail(timeout ? 504 : 502, timeout ? 'Model yanıt süresi aşıldı. İsteği kısaltıp yeniden dene.' : openRouterErrorMessage());
+    return fail(timeout ? 504 : 502, timeout ? 'Model yanÄ±t sÃ¼resi aÅŸÄ±ldÄ±. Ä°steÄŸi kÄ±saltÄ±p yeniden dene.' : openRouterErrorMessage());
   } finally {
     deadline.dispose(); clearInterval(heartbeat); res.off?.('close', close);
     await guard.finish(outcome, requestId, providerStatus);

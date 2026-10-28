@@ -11,6 +11,8 @@ export const AdminAuditTab = ({ refreshVersion = 0 }: { refreshVersion?: number 
   const [events, setEvents] = useState<AuditEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [nextCursor, setNextCursor] = useState<string | null>(null);
+  const [loadingMore, setLoadingMore] = useState(false);
   const requestId = useRef(0);
 
   const load = useCallback(async () => {
@@ -18,8 +20,11 @@ export const AdminAuditTab = ({ refreshVersion = 0 }: { refreshVersion?: number 
     setLoading(true);
     setError(null);
     try {
-      const nextEvents = await fetchAuditEvents(100);
-      if (currentRequest === requestId.current) setEvents(nextEvents);
+      const page = await fetchAuditEvents(100);
+      if (currentRequest === requestId.current) {
+        setEvents(page.events);
+        setNextCursor(page.nextCursor);
+      }
     } catch (failure) {
       if (currentRequest === requestId.current) {
         setError(failure instanceof Error ? failure.message : 'Audit history could not be loaded.');
@@ -28,6 +33,21 @@ export const AdminAuditTab = ({ refreshVersion = 0 }: { refreshVersion?: number 
       if (currentRequest === requestId.current) setLoading(false);
     }
   }, []);
+
+  const loadMore = async () => {
+    if (!nextCursor || loadingMore) return;
+    setLoadingMore(true);
+    setError(null);
+    try {
+      const page = await fetchAuditEvents(100, nextCursor);
+      setEvents(current => [...current, ...page.events.filter(event => !current.some(existing => existing.id === event.id))]);
+      setNextCursor(page.nextCursor);
+    } catch (failure) {
+      setError(failure instanceof Error ? failure.message : 'More audit events could not be loaded.');
+    } finally {
+      setLoadingMore(false);
+    }
+  };
 
   useEffect(() => { void load(); }, [load, refreshVersion]);
 
@@ -75,6 +95,17 @@ export const AdminAuditTab = ({ refreshVersion = 0 }: { refreshVersion?: number 
             </tbody>
           </table>
         </div>
+      )}
+      {nextCursor && !loading && (
+        <button
+          type="button"
+          onClick={() => void loadMore()}
+          disabled={loadingMore}
+          className="mt-3 inline-flex h-9 items-center gap-2 rounded-lg border border-gray-700 px-3 text-xs font-semibold text-gray-300 hover:bg-gray-800 disabled:opacity-50"
+        >
+          {loadingMore ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <History className="h-3.5 w-3.5" />}
+          Load older events
+        </button>
       )}
     </div>
   );

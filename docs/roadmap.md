@@ -64,7 +64,8 @@ keeps its brand assets in both cloud and desktop builds.
 - Workspace roles: owner, editor, viewer and reviewer.
 - Image comments, approval state and revision requests.
 - Review links that work without an account and expire.
-- Client-side audit events for delete/edit/share. (Delivered in #59.)
+- Server-side audit for generation, share and delete; client-declared audit
+  events are rejected. (Delivered in #59/#61.)
 - Per-user and per-provider spend guardrails with alerts. (Per-provider caps and
   the optional alert webhook delivered in #61.)
 
