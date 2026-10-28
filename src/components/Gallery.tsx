@@ -341,8 +341,10 @@ const CustomVideoPlayer: React.FC<{
   const [captureError, setCaptureError] = useState<string | null>(null);
   const [captureNotice, setCaptureNotice] = useState<string | null>(null);
   const controlsHideTimerRef = useRef<number | null>(null);
+  const captureOperationRef = useRef(0);
 
   useEffect(() => {
+    captureOperationRef.current += 1;
     setIsPlaying(false);
     setCurrentTime(0);
     setDuration(0);
@@ -497,6 +499,7 @@ const CustomVideoPlayer: React.FC<{
     if (!video || !onCaptureFrame || isCapturingFrame) return;
 
     revealControls();
+    const operation = ++captureOperationRef.current;
     setIsCapturingFrame(true);
     setCaptureError(null);
     setCaptureNotice(null);
@@ -504,15 +507,17 @@ const CustomVideoPlayer: React.FC<{
       const frame: CapturedFrame = captureVideoFrame(video);
       const filename = buildFrameFilename(sourceVideoId, frame.timestamp);
       await onCaptureFrame({ ...frame, filename, sourceVideoId, folderId });
+      if (captureOperationRef.current !== operation) return;
       clearControlsHideTimer();
       setControlsVisible(true);
       setCaptureNotice(`Frame at ${formatPlaybackTime(frame.timestamp)} saved to the gallery.`);
     } catch (failure) {
+      if (captureOperationRef.current !== operation) return;
       setCaptureError(getFrameCaptureErrorMessage(failure));
       clearControlsHideTimer();
       setControlsVisible(true);
     } finally {
-      setIsCapturingFrame(false);
+      if (captureOperationRef.current === operation) setIsCapturingFrame(false);
     }
   };
 
@@ -3151,6 +3156,7 @@ export const Gallery: React.FC<GalleryProps> = ({
                 </div>
               ) : (
                 <CustomVideoPlayer
+                  key={selectedMedia.id}
                   src={selectedMedia.url}
                   sourceVideoId={selectedMedia.id}
                   folderId={selectedMedia.folderId === undefined ? currentFolderId ?? null : selectedMedia.folderId}
