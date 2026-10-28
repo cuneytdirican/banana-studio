@@ -66,7 +66,7 @@ keeps its brand assets in both cloud and desktop builds.
 - Review links that work without an account and expire.
 - Client-side audit events for delete/edit/share. (Delivered in #59.)
 - Per-user and per-provider spend guardrails with alerts. (Per-provider caps
-  delivered in #60; alert delivery remains follow-up.)
+  delivered in #61; alert delivery remains follow-up.)
 
 Acceptance: RLS tests prove a viewer cannot write and a reviewer cannot see
 other workspaces; the audit log is append-only.
