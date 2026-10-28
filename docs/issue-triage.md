@@ -6,7 +6,7 @@ and can be reopened if they are still wanted.
 
 | Issue | Title | Disposition |
 | --- | --- | --- |
-| #4 | Provider-neutral request admission and spend limits | A limited daily quota is proposed in #55; the full admission/spend-limit design remains separate work. |
+| #4 | Provider-neutral request admission and spend limits | A limited daily quota is enforced for the OpenAI/OpenRouter path; the full provider-neutral admission, rate, concurrency, and spend-limit design remains separate work. |
 | #5 | Enforce media bucket file types, sizes, and quotas server-side | Not implemented in this change; closed by maintainer request. |
 | #6 | Define retention and deletion controls for prompt-bearing usage data | Not implemented in this change; closed by maintainer request. |
 | #7 | Apply a Content Security Policy to the main web application | Not implemented in this change; closed by maintainer request. |
