@@ -11,6 +11,7 @@ import { useToast } from './components/Toast';
 import { useWorkspaceSession } from './hooks/useWorkspaceSession';
 import { useGalleryHash } from './hooks/useGalleryHash';
 import { useJobNotifications } from './hooks/useJobNotifications';
+import { ModelPlayground } from './components/ModelPlayground';
 import { clearPromptHistory, loadPromptHistory, recordPromptHistory, type PromptHistoryEntry } from './lib/prompts/promptHistoryStore';
 import { AdminUserSummary, GenerationConfig, GeneratedMedia, Template, UserProfile, DEFAULT_IMAGE_MODEL, DEFAULT_VIDEO_MODEL, getActiveImageModel, isEnhancedPromptStale } from './types';
 import { generateMedia, brainstormIdeas, generatePromptVariation, isFalImageModel } from './services/geminiService';
@@ -150,6 +151,7 @@ const AuthorizedWorkspace: React.FC<{
   const [imageCostHistory, setImageCostHistory] = useState<{ userId: string; samples: ImageCostSample[] } | null>(null);
   const [templates, setTemplates] = useState<Template[]>([]);
   const [promptHistory, setPromptHistory] = useState<PromptHistoryEntry[]>([]);
+  const [isPlaygroundOpen, setIsPlaygroundOpen] = useState(false);
   const [isInitialGalleryLoading, setIsInitialGalleryLoading] = useState(false);
   const [isGalleryIndexLoading, setIsGalleryIndexLoading] = useState(false);
   const [galleryHistoryError, setGalleryHistoryError] = useState<string | null>(null);
@@ -1653,6 +1655,12 @@ const AuthorizedWorkspace: React.FC<{
 
   const handleClearPromptHistory = () => setPromptHistory(clearPromptHistory(userId));
 
+  const handleApplyPlayground = (patch: Partial<GenerationConfig>) => {
+    setConfig(prev => ({ ...prev, ...patch }));
+    setIsPlaygroundOpen(false);
+    toast.success('Playground applied', 'Model and settings loaded into the composer.');
+  };
+
   const handleSelectTemplate = (template: Template) => {
     try {
       const imageModel = resolveImageModel(template.config.imageModel ?? config.imageModel);
@@ -1691,7 +1699,7 @@ const AuthorizedWorkspace: React.FC<{
   return (
     <div className="relative h-screen w-full bg-[#0d1117] text-white font-sans selection:bg-violet-500/30 flex flex-col overflow-hidden">
 
-      <WorkspaceBar profile={userProfile} onOpenAdmin={() => setIsAdminPanelOpen(true)} onSignOut={handleSignOut} />
+      <WorkspaceBar profile={userProfile} onOpenAdmin={() => setIsAdminPanelOpen(true)} onOpenPlayground={() => setIsPlaygroundOpen(true)} onSignOut={handleSignOut} />
       {/* Admin Panel */}
       {!isLocalWorkspace() && userProfile?.role === 'admin' && (
         <React.Suspense fallback={null}>
@@ -1703,6 +1711,14 @@ const AuthorizedWorkspace: React.FC<{
           />
         </React.Suspense>
       )}
+
+      <ModelPlayground
+        open={isPlaygroundOpen}
+        config={config}
+        images={generatedMedia}
+        onClose={() => setIsPlaygroundOpen(false)}
+        onApply={handleApplyPlayground}
+      />
 
       <Gallery
         key={adminGalleryUser?.user_id || 'own-gallery'}
