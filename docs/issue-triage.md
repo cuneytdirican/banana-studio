@@ -19,3 +19,5 @@ and can be reopened if they are still wanted.
 
 Issues #19 (code-splitting/lazy-loading) and #21 (CORS policy) are addressed by
 #55 and are closed there rather than by this documentation change.
+
+Prepared with MindAeon.
