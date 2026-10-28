@@ -18,7 +18,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const auth = createTaskDeadline(15_000);
   const user = await requireUser(req, res, auth.signal).finally(() => auth.dispose());
   if (!user) return;
-  if (!await enforceDailyGenerationQuota(createUserScopedClient(req), user.id, res)) return;
   const key = process.env.OPENAI_API_KEY;
   if (!key) return res.status(503).json({ error: 'OPENAI_API_KEY sunucuda tanımlı değil. GPT-6.1 Sol için OpenAI anahtarını ekle.' });
 
@@ -87,7 +86,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const provider = createTaskDeadline(250_000);
   console.info(`[openai-text-generate] action=${usageContext.action} reasoning=${reasoningEffort} stage=generating`);
   try {
-    const response = await waitForTask(fetch('https://api.openai.com/v1/responses', {
+    if (!await enforceDailyGenerationQuota(createUserScopedClient(req), user.id, res)) return;
+  const response = await waitForTask(fetch('https://api.openai.com/v1/responses', {
       method: 'POST', redirect: 'error', headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json', 'X-Client-Request-Id': guard.id },
       body: JSON.stringify({
         model: OPENAI_TEXT_MODEL, input: [{ role: 'user', content }],

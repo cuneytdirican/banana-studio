@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { GoogleGenAI } from '@google/genai';
-import { applyCors, createUserScopedClient, requireUser } from './_lib/auth.js';
+import { applyCors, createServiceRoleClient, createUserScopedClient, requireUser } from './_lib/auth.js';
 import { enforceDailyGenerationQuota, recordAcceptedUsage } from './_lib/generationQuota.js';
 import { createTaskDeadline, waitForTask } from '../src/lib/shared/asyncTask.js';
 
@@ -41,7 +41,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const auth = createTaskDeadline(15_000);
   const user = await requireUser(req, res, auth.signal).finally(() => auth.dispose());
   if (!user) return;
-  if (!await enforceDailyGenerationQuota(createUserScopedClient(req), user.id, res)) return;
 
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) {
@@ -78,6 +77,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     safeConfig[key] = value;
   }
 
+  const writer = process.env.BANANA_RUNTIME === 'local' ? createUserScopedClient(req) : createServiceRoleClient();
+  if (!writer) return res.status(503).json({ error: 'Audit logging is not configured.' });
+  if (!await enforceDailyGenerationQuota(createUserScopedClient(req), user.id, res)) return;
+
   const startedAt = Date.now();
   const provider = createTaskDeadline(250_000, undefined, 'Gemini yanıt süresi aşıldı. İstek otomatik olarak tekrarlanmadı. Yeniden deneyebilirsin.');
   // Negotiate the same status/result protocol as the text proxy. Heartbeats
@@ -112,7 +115,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       model, contents,
       config: { ...safeConfig, abortSignal: provider.signal, httpOptions: { timeout: 250_000 } },
     } as any), provider.signal);
-    await recordAcceptedUsage(createUserScopedClient(req), {
+    await recordAcceptedUsage(writer, {
       userId: user.id,
       action: kind === 'video' ? 'video_generate' : 'generate',
       model,

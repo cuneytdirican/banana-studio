@@ -17,7 +17,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const auth = createTaskDeadline(15_000);
   const user = await requireUser(req, res, auth.signal).finally(() => auth.dispose());
   if (!user) return;
-  if (!await enforceDailyGenerationQuota(createUserScopedClient(req), user.id, res)) return;
   const key = process.env.OPENROUTER_API_KEY?.trim();
   if (!key) return res.status(503).json({ error: 'OPENROUTER_API_KEY sunucuda tanımlı değil. Yönetici OpenRouter anahtarını eklemeli.' });
   let body: any;
@@ -74,7 +73,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const analysis = body.outputFormat === 'youtube_analysis';
   const format = analysis ? YOUTUBE_ANALYSIS_FORMAT : usageContext.action === 'brainstorm' ? buildBrainstormOutputFormat(wardrobe, body.brainstormCount) : undefined;
   try {
-    const response = await waitForTask(fetch('https://openrouter.ai/api/v1/chat/completions', {
+    if (!await enforceDailyGenerationQuota(createUserScopedClient(req), user.id, res)) return;
+  const response = await waitForTask(fetch('https://openrouter.ai/api/v1/chat/completions', {
       method: 'POST', redirect: 'error',
       headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json', 'X-OpenRouter-Title': 'Banana Studio' },
       body: JSON.stringify({ model: upstreamModel,

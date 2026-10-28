@@ -67,7 +67,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   const user = await requireUser(req, res);
   if (!user) return;
-  if (!await enforceDailyGenerationQuota(createUserScopedClient(req), user.id, res)) return;
 
   const apiKey = process.env.FAL_KEY;
   if (!apiKey) return res.status(500).json({ error: 'FAL_KEY not configured on server' });
@@ -121,6 +120,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
+    if (!await enforceDailyGenerationQuota(createUserScopedClient(req), user.id, res)) return;
     const registry = await prepareTaskRegistry(res);
     if (!registry) return;
     const response = await fetch(`${FAL_QUEUE_BASE}/${endpoint}`, {

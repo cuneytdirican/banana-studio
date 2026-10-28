@@ -60,7 +60,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   const user = await requireUser(req, res);
   if (!user) return;
-  if (!await enforceDailyGenerationQuota(createUserScopedClient(req), user.id, res)) return;
 
   const apiKey = process.env.EVOLINK_API_KEY;
   if (!apiKey) return res.status(500).json({ error: 'EvoLink API key not configured' });
@@ -189,6 +188,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     requestBody.model = model;
 
+    if (!await enforceDailyGenerationQuota(createUserScopedClient(req), user.id, res)) return;
     const registry = await prepareTaskRegistry(res);
     if (!registry) return;
 
