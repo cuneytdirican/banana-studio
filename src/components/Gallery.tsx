@@ -721,7 +721,7 @@ export const Gallery: React.FC<GalleryProps> = ({
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [selectedMedia?.id, selectedMedia?.isLoading, handleNavigate, isSelectionMode, comparisonIds, isSearchOpen, isYouTubePreviewOpen, isCreatingFolder, isHelpCenterOpen, previewRefImage, sharingFolder, isReadOnly]);
+  }, [selectedMedia?.id, selectedMedia?.isLoading, handleNavigate, isSelectionMode, comparisonIds, isSearchOpen, isYouTubePreviewOpen, isCreatingFolder, isHelpCenterOpen, isIntelligenceOpen, previewRefImage, sharingFolder, isReadOnly]);
 
   // --- Actions ---
 

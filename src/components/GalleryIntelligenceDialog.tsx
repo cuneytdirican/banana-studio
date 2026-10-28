@@ -84,6 +84,7 @@ export const GalleryIntelligenceDialog = ({
   return (
     <dialog
       ref={dialogRef}
+      role="dialog"
       onCancel={event => { event.preventDefault(); onClose(); }}
       aria-labelledby="gallery-intelligence-title"
       className="fixed inset-0 z-[85] m-0 flex h-full max-h-none w-full max-w-none items-center justify-center border-0 bg-black/75 p-4 backdrop:bg-black/75"
