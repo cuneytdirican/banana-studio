@@ -1,5 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { applyCors, requireUser } from './_lib/auth.js';
+import { applyCors, createUserScopedClient, requireUser } from './_lib/auth.js';
+import { enforceDailyGenerationQuota } from './_lib/generationQuota.js';
 import { prepareTaskRegistry, registerProviderTask, requireProviderTask } from './_lib/providerTasks.js';
 import { buildH3MaxInput, H3_MAX_ENDPOINTS } from '../src/lib/video/h3Max.js';
 import { fetchFalRequestCosts } from './_lib/falBillingCosts.js';
@@ -114,7 +115,7 @@ export const config = {
 };
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  applyCors(res);
+  if (!applyCors(req, res)) return;
   // Queue state changes behind the same request URL. Without an explicit
   // no-store policy Vercel/browser revalidation can turn later polls into 304
   // responses and leave the client replaying the first RUNNING payload even
@@ -131,6 +132,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   const user = await requireUser(req, res);
   if (!user) return;
+  if (req.method === 'POST' && !await enforceDailyGenerationQuota(createUserScopedClient(req), user.id, res)) return;
 
   const apiKey = process.env.FAL_KEY;
   if (!apiKey) return res.status(500).json({ error: 'FAL_KEY not configured on server' });

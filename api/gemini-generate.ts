@@ -1,6 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { GoogleGenAI } from '@google/genai';
-import { applyCors, requireUser } from './_lib/auth.js';
+import { applyCors, createUserScopedClient, requireUser } from './_lib/auth.js';
+import { enforceDailyGenerationQuota } from './_lib/generationQuota.js';
 import { createTaskDeadline, waitForTask } from '../src/lib/shared/asyncTask.js';
 
 interface GeminiGenerateRequest {
@@ -33,13 +34,14 @@ export const config = {
 };
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  applyCors(res);
+  if (!applyCors(req, res)) return;
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
   const auth = createTaskDeadline(15_000);
   const user = await requireUser(req, res, auth.signal).finally(() => auth.dispose());
   if (!user) return;
+  if (!await enforceDailyGenerationQuota(createUserScopedClient(req), user.id, res)) return;
 
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) {

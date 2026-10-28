@@ -67,6 +67,8 @@ An environment variable is a named setting supplied to the application by Vercel
 | `SUPABASE_PUBLISHABLE_KEY` | Your project's publishable key; a legacy `anon` key is also accepted | Yes |
 | `SUPABASE_SERVICE_ROLE_KEY` | Your Supabase backend credential: a server secret key or legacy `service_role` key; this is the app's existing variable name | Yes, for server-owned jobs and tasks |
 | `CRON_SECRET` | A fresh random secret, preferably at least 32 characters, generated with your password manager | Yes |
+| `BANANA_CORS_ORIGIN` | Optional comma-separated cross-origin allowlist. Leave unset for same-origin only. | No |
+| `BANANA_DAILY_GENERATION_LIMIT` | Optional per-user daily generation cap. `0` or unset disables it. | No |
 | `OPENAI_API_KEY` | OpenAI key | For GPT Image 2.5 and/or GPT-6.1 Sol |
 | `OPENROUTER_API_KEY` | OpenRouter key | For Opus 5.5, the initial creative default |
 | `GEMINI_API_KEY` | Google Gemini key | For Gemini text tasks and footage analysis |

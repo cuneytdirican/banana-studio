@@ -1,5 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { applyCors, requireUser } from './_lib/auth.js';
+import { applyCors, createUserScopedClient, requireUser } from './_lib/auth.js';
+import { enforceDailyGenerationQuota } from './_lib/generationQuota.js';
 import { prepareTaskRegistry, registerProviderTask, requireProviderTask } from './_lib/providerTasks.js';
 
 const FAL_QUEUE_BASE = 'https://queue.fal.run';
@@ -41,7 +42,7 @@ export const config = {
 };
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  applyCors(res);
+  if (!applyCors(req, res)) return;
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'POST' && req.method !== 'GET') {
     return res.status(405).json({ error: 'Method not allowed' });
@@ -49,6 +50,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   const user = await requireUser(req, res);
   if (!user) return;
+  if (req.method === 'POST' && !await enforceDailyGenerationQuota(createUserScopedClient(req), user.id, res)) return;
 
   const apiKey = process.env.FAL_KEY;
   if (!apiKey) return res.status(500).json({ error: 'FAL_KEY not configured on server' });
