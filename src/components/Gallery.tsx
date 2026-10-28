@@ -1333,7 +1333,16 @@ export const Gallery: React.FC<GalleryProps> = ({
         images={images}
         brandKit={brandKit}
         onClose={() => setIsIntelligenceOpen(false)}
-        onSelect={id => { setSelectedMediaId(id); setIsIntelligenceOpen(false); }}
+        onSelect={id => {
+          const media = images.find(item => item.id === id);
+          setIsIntelligenceOpen(false);
+          setShowFavoritesOnly(false);
+          setMediaFilter('all');
+          setIsSelectionMode(false);
+          onFolderSelect(media?.folderId || null);
+          onImageSelect(media && (!media.status || media.status === 'completed') && media.url ? id : null);
+          setSearchRevealId(id);
+        }}
       />
 
       <LazyBoundary label="Help and sharing">

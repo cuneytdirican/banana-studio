@@ -26,6 +26,9 @@ and composer keep working in cloud and local modes.
   resolution using estimated cost and observed latency, then apply one without
   spending credits.
 
+Rollback: revert #57. Provider keys: none. Migrations: none (prompt history and
+templates use local storage).
+
 Acceptance: a recipe survives reload and desktop/web export; the playground
 shows measured costs from `usage_logs`.
 
@@ -38,6 +41,9 @@ shows measured costs from `usage_logs`.
 
 Acceptance: a 10k-item gallery stays responsive; saved views round-trip through
 the local workspace.
+
+Rollback: revert the Phase 3 PRs. Provider keys: none. Migrations: none; the
+hash scan is client-side and bounded to 120 images.
 
 ## Phase 4 — Brand kit and export presets (delivered in #58)
 

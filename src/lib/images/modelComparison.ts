@@ -35,7 +35,17 @@ export const buildModelComparison = (
     count: 1,
   });
   const samples = options.images
-    .filter(item => item.imageModel === model && typeof item.generationTime === 'number' && item.generationTime > 0)
+    .filter(item =>
+      item.imageModel === model &&
+      item.mediaType === 'image' &&
+      (!item.status || item.status === 'completed') &&
+      !item.isLoading &&
+      item.aspectRatio === options.aspectRatio &&
+      item.resolution === options.resolution &&
+      typeof item.generationTime === 'number' &&
+      Number.isFinite(item.generationTime) &&
+      item.generationTime > 0,
+    )
     .slice(0, 20);
   const averageSeconds = samples.length
     ? Math.round((samples.reduce((sum, item) => sum + (item.generationTime || 0), 0) / samples.length) * 10) / 10

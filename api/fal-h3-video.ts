@@ -173,8 +173,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           const savedQueueEndpoint = typeof metadata.falQueueEndpoint === 'string' && ALLOWED_QUEUE_ENDPOINTS.has(metadata.falQueueEndpoint) ? metadata.falQueueEndpoint : savedEndpoint;
           return res.status(200).json({ taskId: saved.task_id, endpoint: savedEndpoint, queueEndpoint: savedQueueEndpoint });
         }
-        if (!await enforceDailyGenerationQuota(createUserScopedClient(req), user.id, res)) return;
-        quotaChecked = true;
         if (saved.status !== 'pending' || metadata.h3SubmissionStartedAt) return res.status(409).json({
           code: 'GENERATION_SUBMITTING', error: 'This saved video was already submitted or its acceptance is uncertain. Do not submit again; check its saved task history and usage.',
         });
@@ -183,6 +181,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           .update({ status: 'processing', metadata: claimedMetadata }).eq('id', body.generationId).eq('user_id', user.id).eq('status', 'pending').select('id').maybeSingle();
         if (claimError) return res.status(503).json({ error: 'The saved video could not be claimed. No provider request was sent.' });
         if (!claimed) return res.status(409).json({ code: 'GENERATION_SUBMITTING', error: 'This saved video is already being submitted. Check the existing task instead of submitting again.' });
+        if (!await enforceDailyGenerationQuota(createUserScopedClient(req), user.id, res)) {
+          // Release the claim so a rejected quota cannot strand the generation.
+          await registry.from('generations')
+            .update({ status: 'pending', metadata })
+            .eq('id', body.generationId).eq('user_id', user.id).eq('status', 'processing');
+          return;
+        }
+        quotaChecked = true;
         galleryClaim = { id: body.generationId, metadata: claimedMetadata };
       }
       if (!quotaChecked && !await enforceDailyGenerationQuota(createUserScopedClient(req), user.id, res)) return;
