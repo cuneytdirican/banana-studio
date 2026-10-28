@@ -29,7 +29,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(503).json({ code:'QUEUE_STATE_UNKNOWN', error:'The queue could not confirm this image. Check the gallery before submitting again.' });
     }
     if (data.error) {
-      await releaseDailyGenerationQuota(db);
+      await releaseDailyGenerationQuota(db, user.id);
       return res.status(data.error==='session'?403:data.error==='full'?429:409).json({ error:data.error==='full'?'The saved image queue is full. Wait for existing jobs to finish.':'This generation could not be queued.', ...(data.error==='exists'?{code:'GENERATION_EXISTS'}:{}) });
     }
     // The transactional outbox sweeper also publishes saved jobs after a

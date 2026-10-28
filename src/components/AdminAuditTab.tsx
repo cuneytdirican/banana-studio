@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { History, Loader2, RefreshCw } from 'lucide-react';
 import { fetchAuditEvents, type AuditEvent } from '../services/auditService';
 
@@ -11,16 +11,21 @@ export const AdminAuditTab = ({ refreshVersion = 0 }: { refreshVersion?: number 
   const [events, setEvents] = useState<AuditEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const requestId = useRef(0);
 
   const load = useCallback(async () => {
+    const currentRequest = ++requestId.current;
     setLoading(true);
     setError(null);
     try {
-      setEvents(await fetchAuditEvents(100));
+      const nextEvents = await fetchAuditEvents(100);
+      if (currentRequest === requestId.current) setEvents(nextEvents);
     } catch (failure) {
-      setError(failure instanceof Error ? failure.message : 'Audit history could not be loaded.');
+      if (currentRequest === requestId.current) {
+        setError(failure instanceof Error ? failure.message : 'Audit history could not be loaded.');
+      }
     } finally {
-      setLoading(false);
+      if (currentRequest === requestId.current) setLoading(false);
     }
   }, []);
 
