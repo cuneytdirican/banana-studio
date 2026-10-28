@@ -4,9 +4,15 @@ import { signInWithGoogle } from '../services/authService';
 
 interface LoginScreenProps {
   isUnauthorized?: boolean;
+  isUnavailable?: boolean;
+  isSignOutFailed?: boolean;
 }
 
-export const LoginScreen: React.FC<LoginScreenProps> = ({ isUnauthorized = false }) => {
+export const LoginScreen: React.FC<LoginScreenProps> = ({
+  isUnauthorized = false,
+  isUnavailable = false,
+  isSignOutFailed = false,
+}) => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -81,7 +87,31 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ isUnauthorized = false
             </div>
           )}
 
-          {isUnauthorized && !error && (
+          {isSignOutFailed && !error && (
+            <div className="mt-4 p-4 bg-amber-500/10 border border-amber-500/20 rounded-lg">
+              <p className="text-sm font-medium text-amber-400">Sign-out failed</p>
+              <p className="text-xs text-amber-400/70 mt-1">
+                The remote session could not be closed. Reload the page to continue.
+              </p>
+              <button type="button" onClick={() => window.location.reload()} className="mt-3 text-xs font-semibold text-amber-300 hover:text-amber-200">
+                Reload
+              </button>
+            </div>
+          )}
+
+          {isUnavailable && !error && !isSignOutFailed && (
+            <div className="mt-4 p-4 bg-sky-500/10 border border-sky-500/20 rounded-lg">
+              <p className="text-sm font-medium text-sky-300">Connection problem</p>
+              <p className="text-xs text-sky-300/70 mt-1">
+                We could not verify your session. Check your network and try again.
+              </p>
+              <button type="button" onClick={() => window.location.reload()} className="mt-3 text-xs font-semibold text-sky-200 hover:text-white">
+                Retry
+              </button>
+            </div>
+          )}
+
+          {isUnauthorized && !error && !isUnavailable && !isSignOutFailed && (
             <div className="mt-4 p-4 bg-amber-500/10 border border-amber-500/20 rounded-lg flex items-start gap-3">
               <ShieldAlert className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
               <div>

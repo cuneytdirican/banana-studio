@@ -90,14 +90,22 @@ export const onAuthStateChange = (callback: (session: Session | null, event?: st
 };
 
 /** Only a verified identity with an exact, active allowlist entry may enter. */
-export const isUserAuthorized = async (expectedUserId?: string): Promise<boolean> => {
+export type AuthorizationResult = 'authorized' | 'unauthorized' | 'unavailable';
+
+/**
+ * A definite allowlist answer is `unauthorized`; a read that never reached the
+ * server is `unavailable`. Entry stays deny-on-error, while an already verified
+ * session can keep working through a transient network blip.
+ */
+export const checkUserAuthorization = async (expectedUserId?: string): Promise<AuthorizationResult> => {
   const MAX_ATTEMPTS = 3;
+  let unavailable = false;
   for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
     try {
       const { data: { user }, error: userError } = await supabase.auth.getUser();
       if (userError) throw userError;
       if (!user?.email || !user.email_confirmed_at || (user as { is_anonymous?: boolean }).is_anonymous
-        || (expectedUserId && user.id !== expectedUserId)) return false;
+        || (expectedUserId && user.id !== expectedUserId)) return 'unauthorized';
 
       // LIKE treats '_' and '%' as wildcards, both valid email characters.
       const email = user.email.trim().toLowerCase();
@@ -109,16 +117,21 @@ export const isUserAuthorized = async (expectedUserId?: string): Promise<boolean
         .ilike('email', literalEmail)
         .maybeSingle();
       if (error) throw error;
-      return !!data && String(data.email || '').trim().toLowerCase() === email;
+      return data && String(data.email || '').trim().toLowerCase() === email ? 'authorized' : 'unauthorized';
     } catch {
+      unavailable = true;
       if (attempt < MAX_ATTEMPTS) {
         await new Promise(resolve => setTimeout(resolve, 400 * attempt));
       }
     }
   }
-  // Network errors and expired/revoked identities never grant access.
-  return false;
+  // A mixed attempt history is treated as unavailable; deny-on-error still
+  // applies at entry because the caller does not keep an access grant.
+  return unavailable ? 'unavailable' : 'unauthorized';
 };
+
+export const isUserAuthorized = async (expectedUserId?: string): Promise<boolean> =>
+  (await checkUserAuthorization(expectedUserId)) === 'authorized';
 
 // --- Usage Logging ---
 
