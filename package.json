@@ -10,7 +10,7 @@
     "test:coverage": "vitest run --coverage",
     "test:all": "npm test && npm run test:ui",
     "lint": "eslint .",
-    "format": "prettier --write .",
+    "format": "prettier --write package.json tsconfig.json vite.config.ts eslint.config.js vitest.config.ts",
     "format:check": "prettier --check package.json tsconfig.json vite.config.ts eslint.config.js vitest.config.ts",
     "build": "vite build",
     "preview": "vite preview",

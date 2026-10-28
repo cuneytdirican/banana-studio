@@ -45,7 +45,7 @@ the local workspace.
 Rollback: revert the Phase 3 PRs. Provider keys: none. Migrations: none; the
 hash scan is client-side and bounded to 120 images.
 
-## Phase 4 — Brand kit and export presets (delivered in #58)
+## Phase 4 — Brand kit and export presets (proposed in #58)
 
 - Per-user brand name, primary/accent colors, font, logo and safe margin.
 - Branded contact sheets with logo, accent rule and brand typography.
