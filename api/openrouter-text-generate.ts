@@ -63,6 +63,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (streaming) { send({ type: 'error', error }); return res.end(); }
     return res.status(status).json({ error });
   };
+  if (!await enforceDailyGenerationQuota(createUserScopedClient(req), user.id, res)) {
+    await guard.finish('failed', null, 429);
+    return;
+  }
   if (streaming) {
     res.setHeader('Content-Type', 'application/x-ndjson; charset=utf-8'); res.setHeader('X-Accel-Buffering', 'no');
     res.on('close', close); send({ type: 'status', stage: 'generating' });
@@ -73,7 +77,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const analysis = body.outputFormat === 'youtube_analysis';
   const format = analysis ? YOUTUBE_ANALYSIS_FORMAT : usageContext.action === 'brainstorm' ? buildBrainstormOutputFormat(wardrobe, body.brainstormCount) : undefined;
   try {
-    if (!await enforceDailyGenerationQuota(createUserScopedClient(req), user.id, res)) return;
   const response = await waitForTask(fetch('https://openrouter.ai/api/v1/chat/completions', {
       method: 'POST', redirect: 'error',
       headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json', 'X-OpenRouter-Title': 'Banana Studio' },

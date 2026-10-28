@@ -37,7 +37,7 @@ Use an empty project reserved for this application. The baseline creates tables 
 1. Open [the baseline SQL file](../../supabase/migrations/20261019123903_banana_studio_baseline.sql). On GitHub, use **Raw** or the copy button to copy the **entire file**.
 2. In your new Supabase project, open **SQL Editor → New query**.
 3. Paste the SQL and select **Run**. Run the baseline once on the new project.
-4. If `BANANA_DAILY_GENERATION_LIMIT` is positive, run the full `20261028120000_generation_quota.sql` migration in SQL Editor after the baseline. The quota fails closed if its RPC is missing. Run `20261028130000_audit_events.sql` as well to enable the administrator audit trail.
+4. If `BANANA_DAILY_GENERATION_LIMIT` is positive, run the full `20261028120000_generation_quota.sql` migration in SQL Editor after the baseline. The quota fails closed if its RPC is missing. Run `20261028130000_audit_events.sql` as well to enable the administrator audit trail, and `20261028140000_release_generation_quota.sql` so rejected queue jobs return their reserved slot.
 5. In **Table Editor**, check for tables such as `profiles`, `generations`, `folders` and `authorized_emails`.
 6. In **Storage**, check that the `media` bucket exists and is **private**. Keep its policies and the table access rules from the migration.
 

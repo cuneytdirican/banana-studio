@@ -1814,7 +1814,7 @@ const AuthorizedWorkspace: React.FC<{
             action: 'media.edited',
             targetType: 'media',
             targetId: getGalleryEditSourceId(editConfig.referenceImages) ?? editConfig.referenceImages?.[0]?.id,
-            metadata: { model: editConfig.imageModel, resultIds: result },
+            metadata: { model: editConfig.imageModel },
           }).catch(() => {});
           return result;
         }}

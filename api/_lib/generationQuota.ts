@@ -61,6 +61,16 @@ const rejectQuota = (res: VercelResponse, limit: number): false => {
   return false;
 };
 
+export const releaseDailyGenerationQuota = async (db: any): Promise<void> => {
+  if (typeof db?.rpc !== 'function') return;
+  try {
+    const { error } = await db.rpc('release_generation_quota');
+    if (error) console.warn('Generation quota release failed', error.message);
+  } catch (error) {
+    console.warn('Generation quota release failed', error);
+  }
+};
+
 export const enforceDailyGenerationQuota = async (
   db: any,
   userId: string,

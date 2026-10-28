@@ -3,7 +3,7 @@ import { applyCors, createServiceRoleClient, createUserScopedClient, requireUser
 import { getOpenAISessionId } from './_lib/openaiGuard.js';
 import { ImageJobInputError, prepareImageJobPayload } from './_lib/imageJobPayload.js';
 import { publishImageJob } from './_lib/imageJobQueue.js';
-import { enforceDailyGenerationQuota } from './_lib/generationQuota.js';
+import { enforceDailyGenerationQuota, releaseDailyGenerationQuota } from './_lib/generationQuota.js';
 
 export const config = { maxDuration: 60 };
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -20,10 +20,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   catch { return res.status(400).json({ error:'Invalid image job.' }); }
   try {
     const { payload, metadata } = await prepareImageJobPayload(body,createUserScopedClient(req));
-    if (!await enforceDailyGenerationQuota(createUserScopedClient(req), user.id, res)) return;
+    const quotaDb = createUserScopedClient(req);
+    if (!await enforceDailyGenerationQuota(quotaDb, user.id, res)) return;
     const { data, error } = await db.rpc('enqueue_image_job', { p_user_id:user.id, p_session_id:sessionId, p_id:payload.id, p_payload:payload, p_metadata:metadata });
-    if (error || !data) return res.status(503).json({ code:'QUEUE_STATE_UNKNOWN', error:'The queue could not confirm this image. Check the gallery before submitting again.' });
-    if (data.error) return res.status(data.error==='session'?403:data.error==='full'?429:409).json({ error:data.error==='full'?'The saved image queue is full. Wait for existing jobs to finish.':'This generation could not be queued.', ...(data.error==='exists'?{code:'GENERATION_EXISTS'}:{}) });
+    if (error || !data) {
+      await releaseDailyGenerationQuota(quotaDb);
+      return res.status(503).json({ code:'QUEUE_STATE_UNKNOWN', error:'The queue could not confirm this image. Check the gallery before submitting again.' });
+    }
+    if (data.error) {
+      await releaseDailyGenerationQuota(quotaDb);
+      return res.status(data.error==='session'?403:data.error==='full'?429:409).json({ error:data.error==='full'?'The saved image queue is full. Wait for existing jobs to finish.':'This generation could not be queued.', ...(data.error==='exists'?{code:'GENERATION_EXISTS'}:{}) });
+    }
     // The transactional outbox sweeper also publishes saved jobs after a
     // disconnect/crash or a temporarily unavailable queue service.
     if (!['completed','failed'].includes(data.state)) {

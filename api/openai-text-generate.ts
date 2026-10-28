@@ -76,6 +76,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (streaming) { send({ type: 'error', error }); return res.end(); }
     return res.status(status).json({ error });
   };
+  if (!await enforceDailyGenerationQuota(createUserScopedClient(req), user.id, res)) {
+    await guard.finish('failed', null, 429);
+    return;
+  }
   if (streaming) {
     res.setHeader('Content-Type', 'application/x-ndjson; charset=utf-8');
     res.setHeader('X-Accel-Buffering', 'no');
@@ -86,7 +90,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const provider = createTaskDeadline(250_000);
   console.info(`[openai-text-generate] action=${usageContext.action} reasoning=${reasoningEffort} stage=generating`);
   try {
-    if (!await enforceDailyGenerationQuota(createUserScopedClient(req), user.id, res)) return;
   const response = await waitForTask(fetch('https://api.openai.com/v1/responses', {
       method: 'POST', redirect: 'error', headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json', 'X-Client-Request-Id': guard.id },
       body: JSON.stringify({
