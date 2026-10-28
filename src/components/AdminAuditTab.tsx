@@ -7,7 +7,7 @@ const formatDate = (value: string): string => {
   return Number.isNaN(date.getTime()) ? value : date.toLocaleString();
 };
 
-export const AdminAuditTab = () => {
+export const AdminAuditTab = ({ refreshVersion = 0 }: { refreshVersion?: number }) => {
   const [events, setEvents] = useState<AuditEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -24,7 +24,7 @@ export const AdminAuditTab = () => {
     }
   }, []);
 
-  useEffect(() => { void load(); }, [load]);
+  useEffect(() => { void load(); }, [load, refreshVersion]);
 
   return (
     <div className="p-4 sm:p-6">

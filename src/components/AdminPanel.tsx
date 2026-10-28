@@ -270,7 +270,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose, onViewU
         <div key={activeTab} className="min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-contain pb-[env(safe-area-inset-bottom)]">
         {activeTab === 'usage' && <AdminUsageFilter period={usagePeriod} range={usageRange} onChange={setUsagePeriod} />}
         {activeTab === 'audit' ? (
-          <AdminAuditTab />
+          <AdminAuditTab refreshVersion={refreshVersion} />
         ) : isLoading ? (
           <div role="status" className="flex-1 flex items-center justify-center gap-3 p-12 text-sm text-gray-400">
             <Loader2 className="w-8 h-8 text-violet-400 animate-spin" /> Loading {activeTab === 'usage' ? 'usage' : 'users'}…

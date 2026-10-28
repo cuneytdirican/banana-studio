@@ -11,6 +11,7 @@ import { getImageCostPreview, type ImageCostSample } from '../lib/images/imageCo
 import { Dropdown } from './ControlDropdown';
 import { ImageCountControl, PROMPT_PANEL_CLASS, PROMPT_INPUT_CLASS, PROMPT_TEXTAREA_CLASS, PROMPT_TOOLBAR_CLASS, PROMPT_SETTINGS_CLASS, PROMPT_ACTIONS_CLASS, PROMPT_REVERT_CLASS, promptResizeClass, promptEnhanceClass, promptGenerateClass } from './PromptComposerUI';
 import { SeedControl } from './SeedControl';
+import { MODEL_ROUTES } from '../lib/providers';
 import { TemplateVariablesDialog } from './TemplateVariablesDialog';
 import { extractTemplateVariables } from '../lib/prompts/templateVariables';
 import { OpenAIImageSettings } from './OpenAIImageSettings';
@@ -2612,7 +2613,7 @@ export const Controls: React.FC<ControlsProps> = ({
                       <Dropdown label="Resolution" value={config.resolution} options={resolutionOptions} onSelect={(val) => updateConfig('resolution', val)} icon={Scan} compact />
                     </>}
                     <ImageCountControl count={config.count} onChange={value => updateConfig('count', value)} />
-                    {!isSunburst && <SeedControl config={config} onChange={onChange} />}
+                    {!isSunburst && MODEL_ROUTES[config.imageModel]?.[0] === 'fal' && <SeedControl config={config} onChange={onChange} />}
                   </>
                 )}
             </div>
