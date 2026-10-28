@@ -97,6 +97,14 @@ export type AuthorizationResult = 'authorized' | 'unauthorized' | 'unavailable';
  * server is `unavailable`. Entry stays deny-on-error, while an already verified
  * session can keep working through a transient network blip.
  */
+const isDefiniteAuthRejection = (error: unknown): boolean => {
+  const value = error as { status?: number; code?: string; name?: string; message?: string } | null;
+  const status = Number(value?.status);
+  if (status === 401 || status === 403) return true;
+  const text = `${value?.name || ''} ${value?.code || ''} ${value?.message || ''}`.toLowerCase();
+  return /session (missing|not found)|refresh token not found|invalid (refresh token|jwt|token)|bad_jwt|user not found/.test(text);
+};
+
 export const checkUserAuthorization = async (expectedUserId?: string): Promise<AuthorizationResult> => {
   const MAX_ATTEMPTS = 3;
   let unavailable = false;
@@ -118,7 +126,10 @@ export const checkUserAuthorization = async (expectedUserId?: string): Promise<A
         .maybeSingle();
       if (error) throw error;
       return data && String(data.email || '').trim().toLowerCase() === email ? 'authorized' : 'unauthorized';
-    } catch {
+    } catch (error) {
+      // A rejected/expired identity is a definite answer; only network and
+      // service-availability failures are retried and reported as unavailable.
+      if (isDefiniteAuthRejection(error)) return 'unauthorized';
       unavailable = true;
       if (attempt < MAX_ATTEMPTS) {
         await new Promise(resolve => setTimeout(resolve, 400 * attempt));

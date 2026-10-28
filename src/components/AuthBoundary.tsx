@@ -59,8 +59,11 @@ export function AuthBoundary({ children }: {
       const check = ++revision.current;
       checking = true;
       let userId: string | null = null;
+      let sessionReadFailed = false;
       try {
+        sessionReadFailed = providedSession === undefined;
         const session = providedSession === undefined ? await getSession() : providedSession;
+        sessionReadFailed = false;
         if (!isCurrent(check)) return;
         userId = session?.user.id || null;
         if (userId !== identity.current) {
@@ -112,14 +115,14 @@ export function AuthBoundary({ children }: {
       } catch {
         if (!isCurrent(check)) return;
         setLoading(false);
-        if (verifiedUserId.current === userId) {
+        if (verifiedUserId.current !== null && verifiedUserId.current === identity.current) {
           // A profile/network read failed after access was already verified.
           setUnavailable(false);
           return;
         }
         forgetIdentity();
-        setDenied(true);
-        setUnavailable(false);
+        setDenied(!sessionReadFailed);
+        setUnavailable(sessionReadFailed);
         setSignOutFailed(false);
       } finally {
         if (revision.current === check) checking = false;
