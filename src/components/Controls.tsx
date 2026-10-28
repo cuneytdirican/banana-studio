@@ -11,6 +11,8 @@ import { getImageCostPreview, type ImageCostSample } from '../lib/images/imageCo
 import { Dropdown } from './ControlDropdown';
 import { ImageCountControl, PROMPT_PANEL_CLASS, PROMPT_INPUT_CLASS, PROMPT_TEXTAREA_CLASS, PROMPT_TOOLBAR_CLASS, PROMPT_SETTINGS_CLASS, PROMPT_ACTIONS_CLASS, PROMPT_REVERT_CLASS, promptResizeClass, promptEnhanceClass, promptGenerateClass } from './PromptComposerUI';
 import { SeedControl } from './SeedControl';
+import { TemplateVariablesDialog } from './TemplateVariablesDialog';
+import { extractTemplateVariables } from '../lib/prompts/templateVariables';
 import { OpenAIImageSettings } from './OpenAIImageSettings';
 import { H3MaxDuration, H3MaxSettings, getH3MaxImageLabel, getH3MaxInputError, getH3MaxUIState } from './H3MaxSettings';
 import { estimateH3MaxCost } from '../lib/video/h3MaxPricing';
@@ -165,6 +167,7 @@ export const Controls: React.FC<ControlsProps> = ({
   const [isTemplateMenuOpen, setIsTemplateMenuOpen] = useState(false);
   const [newTemplateName, setNewTemplateName] = useState('');
   const [isNamingTemplate, setIsNamingTemplate] = useState(false);
+  const [templateWithVariables, setTemplateWithVariables] = useState<Template | null>(null);
   const templateButtonRef = useRef<HTMLButtonElement>(null);
   const templateMenuRef = useRef<HTMLDivElement>(null);
   const [templateMenuPos, setTemplateMenuPos] = useState({ bottom: 0, left: 0 });
@@ -2340,10 +2343,15 @@ export const Controls: React.FC<ControlsProps> = ({
                                          <div 
                                            key={t.id} 
                                            className="flex items-center gap-3 group p-3 hover:bg-gray-800/50 rounded-xl transition-all cursor-pointer border border-transparent hover:border-gray-700/50"
-                                                onClick={() => {
-                                                    onSelectTemplate(t);
-                                                    setIsTemplateMenuOpen(false);
-                                                }}
+                                                 onClick={() => {
+                                                     if (extractTemplateVariables(t.config.prompt).length) {
+                                                         setTemplateWithVariables(t);
+                                                         setIsTemplateMenuOpen(false);
+                                                         return;
+                                                     }
+                                                     onSelectTemplate(t);
+                                                     setIsTemplateMenuOpen(false);
+                                                 }}
                                          >
                                              {/* Template Icon */}
                                              <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-violet-600/20 to-indigo-600/20 border border-violet-500/20 flex items-center justify-center shrink-0">
@@ -2691,6 +2699,17 @@ export const Controls: React.FC<ControlsProps> = ({
         </div>
 
       </div>
+
+      {templateWithVariables && (
+        <TemplateVariablesDialog
+          template={templateWithVariables}
+          onCancel={() => setTemplateWithVariables(null)}
+          onApply={prompt => {
+            onSelectTemplate({ ...templateWithVariables, config: { ...templateWithVariables.config, prompt } });
+            setTemplateWithVariables(null);
+          }}
+        />
+      )}
     </div>
   );
 };
