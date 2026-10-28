@@ -1676,8 +1676,8 @@ const AuthorizedWorkspace: React.FC<{
 
       <WorkspaceBar profile={userProfile} onOpenAdmin={() => setIsAdminPanelOpen(true)} onSignOut={handleSignOut} />
       {/* Admin Panel */}
-      {!isLocalWorkspace() && userProfile?.role === 'admin' && (
-        <LazyBoundary label="Workspace admin">
+      {!isLocalWorkspace() && userProfile?.role === 'admin' && isAdminPanelOpen && (
+        <LazyBoundary label="Workspace admin" onDismiss={() => setIsAdminPanelOpen(false)}>
           <React.Suspense fallback={null}>
             <AdminPanel
               isOpen={isAdminPanelOpen}

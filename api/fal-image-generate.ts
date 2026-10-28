@@ -159,7 +159,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     await registerProviderTask(registry, 'fal', data.request_id, user.id);
-    await recordAcceptedUsage(registry, { userId: user.id, action: 'generate', model: body.endpoint || 'fal-image', prompt: body.prompt, imageCount: 1 });
+    await recordAcceptedUsage(registry, { userId: user.id, action: 'generate', model: body.endpoint || 'fal-image', prompt: typeof input.prompt === 'string' ? input.prompt : '', imageCount: 1 });
 
     console.log(
       `[fal-submit] endpoint=${endpoint} request_id=${data.request_id}`,

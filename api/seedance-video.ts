@@ -16,7 +16,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (!['GET','POST'].includes(req.method || '')) return res.status(405).json({ error: 'Method not allowed' });
   const user = await requireUser(req,res); if (!user) return;
-  if (req.method === 'POST' && !await enforceDailyGenerationQuota(createUserScopedClient(req), user.id, res)) return;
   try {
     if (req.method === 'POST') {
       const body = typeof req.body === 'string' ? JSON.parse(req.body) : req.body;
@@ -31,6 +30,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       for (const field of ['imageUrls','videoUrls','audioUrls']) {
         if (body[field] != null && (!Array.isArray(body[field]) || body[field].some((url: unknown) => !isReferenceUrl(url) && !(provider === 'openrouter' && typeof url === 'string' && /^data:image\/(?:png|jpeg|webp);base64,[a-zA-Z0-9+/=]+$/.test(url))))) return res.status(400).json({ error: 'Invalid reference media.' });
       }
+      if (!await enforceDailyGenerationQuota(createUserScopedClient(req), user.id, res)) return;
       const registry = await prepareTaskRegistry(res); if (!registry) return;
       const fal = falSeedanceInput(body);
       const response = await fetch(provider === 'fal' ? `https://queue.fal.run/${fal.endpoint}` : 'https://openrouter.ai/api/v1/videos', {
