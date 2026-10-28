@@ -504,9 +504,12 @@ const CustomVideoPlayer: React.FC<{
       const frame: CapturedFrame = captureVideoFrame(video);
       const filename = buildFrameFilename(sourceVideoId, frame.timestamp);
       await onCaptureFrame({ ...frame, filename, sourceVideoId, folderId });
+      clearControlsHideTimer();
+      setControlsVisible(true);
       setCaptureNotice(`Frame at ${formatPlaybackTime(frame.timestamp)} saved to the gallery.`);
     } catch (failure) {
       setCaptureError(getFrameCaptureErrorMessage(failure));
+      clearControlsHideTimer();
       setControlsVisible(true);
     } finally {
       setIsCapturingFrame(false);
@@ -799,6 +802,8 @@ export const Gallery: React.FC<GalleryProps> = ({
   const [isFoldersLoading, setIsFoldersLoading] = useState(true);
   const selectedMediaId = selectedImageId;
   const setSelectedMediaId = onImageSelect;
+  const selectedMediaIdRef = useRef(selectedMediaId);
+  selectedMediaIdRef.current = selectedMediaId;
   const [gridCols, setGridCols] = useState<number>(4);
   const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
@@ -3148,10 +3153,11 @@ export const Gallery: React.FC<GalleryProps> = ({
                 <CustomVideoPlayer
                   src={selectedMedia.url}
                   sourceVideoId={selectedMedia.id}
-                  folderId={selectedMedia.folderId ?? currentFolderId ?? null}
+                  folderId={selectedMedia.folderId === undefined ? currentFolderId ?? null : selectedMedia.folderId}
                   onCaptureFrame={!isReadOnly && onSaveCapturedFrame ? async request => {
+                    const sourceId = selectedMedia.id;
                     const savedId = await onSaveCapturedFrame(request);
-                    setSelectedMediaId(savedId);
+                    if (selectedMediaIdRef.current === sourceId) setSelectedMediaId(savedId);
                     return savedId;
                   } : undefined}
                   onError={() => handleImageBroken(selectedMedia.id)}

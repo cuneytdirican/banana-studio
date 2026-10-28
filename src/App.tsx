@@ -1582,6 +1582,7 @@ const AuthorizedWorkspace: React.FC<{
       status: 'completed',
       imageOutputSize: `${request.width}x${request.height}`,
       imageRequestedSize: `${request.width}x${request.height}`,
+      generationCost: { usd: 0 },
     };
 
     // Reuse the normal gallery persistence path. Hosted workspaces upload and
