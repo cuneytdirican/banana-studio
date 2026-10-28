@@ -194,7 +194,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             const { error: releaseError } = await registry.from('generations')
               .update({ status: 'pending', metadata })
               .eq('id', body.generationId).eq('user_id', user.id).eq('status', 'processing');
-            if (releaseError) console.error('H3 claim release failed', releaseError);
+            if (releaseError) {
+              console.error('H3 claim release failed; forcing the claim back to pending', releaseError);
+              const { error: forceError } = await registry.from('generations')
+                .update({ status: 'pending', metadata })
+                .eq('id', body.generationId).eq('user_id', user.id);
+              if (forceError) console.error('H3 claim force-release failed', forceError);
+            }
           } catch (releaseError) {
             console.error('H3 claim release failed', releaseError);
           }

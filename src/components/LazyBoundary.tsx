@@ -36,7 +36,6 @@ export class LazyBoundary extends React.Component<{ children: React.ReactNode; l
           <div className="mt-4 flex justify-center gap-2">
             <button
               type="button"
-              autoFocus
               onClick={() => window.location.reload()}
               className="rounded-lg bg-violet-600 px-4 py-2 text-xs font-semibold text-white hover:bg-violet-500"
             >
@@ -44,6 +43,7 @@ export class LazyBoundary extends React.Component<{ children: React.ReactNode; l
             </button>
             <button
               type="button"
+              autoFocus
               onClick={() => {
                 this.props.onDismiss?.();
                 this.setState({ dismissed: true });
